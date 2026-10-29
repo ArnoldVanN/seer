@@ -59,13 +59,20 @@ The body is the event as JSON:
   "endpointName": "API",
   "group": "core",
   "description": "Paging the API team",
-  "error": "status 503",
-  "at": "2026-10-29T08:00:00Z"
+  "at": "2026-10-29T08:00:00Z",
+  "url": "https://api.acme.com/health",
+  "failedConditions": ["[STATUS] (503) == 200"],
+  "failures": 3
 }
 ```
 
-`kind` is `triggered` or `resolved`. A resolved event has no `error`. Any
-non-2xx response counts as a failure.
+`kind` is `triggered` or `resolved`. A triggered event lists the conditions
+that failed, with the value each one saw, how many checks in a row failed,
+and `error` if the check couldn't reach the endpoint at all. A resolved event
+has none of those, but has `downSince` when Seer knows when the endpoint went
+down. Any non-2xx response counts as a failure.
+
+Slack, Discord and email show the same details as fields.
 
 ## slack
 

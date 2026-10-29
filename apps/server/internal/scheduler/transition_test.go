@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/seer-status/seer/apps/server/internal/checker"
 	"github.com/seer-status/seer/apps/server/internal/config"
 	"github.com/seer-status/seer/apps/server/internal/notify"
 )
@@ -17,7 +18,7 @@ func TestNextThresholds(t *testing.T) {
 	var all []notify.Event
 	step := func(ok bool) {
 		var evs []notify.Event
-		s, evs = next(s, ok, "boom", spec, time.Now())
+		s, evs = next(s, checker.Outcome{Success: ok, Error: "boom", CheckedAt: time.Now()}, spec)
 		all = append(all, evs...)
 	}
 

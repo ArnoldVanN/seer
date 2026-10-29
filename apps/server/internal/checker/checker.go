@@ -19,6 +19,8 @@ type Outcome struct {
 	ResponseTime time.Duration
 	Error        string
 	Conditions   []schema.ConditionResult
+	// The conditions that failed, with the values they saw, for alerts.
+	Failed []string
 }
 
 // probe fills in what it observed. An error means the target couldn't be
@@ -61,6 +63,7 @@ func Run(ctx context.Context, e *config.Endpoint) Outcome {
 		out.Conditions = append(out.Conditions, schema.ConditionResult{Condition: c, Success: ok})
 		if !ok {
 			out.Success = false
+			out.Failed = append(out.Failed, condition.Describe(c, &cctx))
 		}
 	}
 	if err := errors.Join(errs...); err != nil {

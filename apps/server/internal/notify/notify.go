@@ -37,6 +37,13 @@ type Event struct {
 	Description  string    `json:"description,omitempty"`
 	Error        string    `json:"error,omitempty"`
 	At           time.Time `json:"at"`
+	URL          string    `json:"url,omitempty"`
+	// Triggered only: the conditions that failed, with the values they saw,
+	// and how many checks in a row have failed.
+	FailedConditions []string `json:"failedConditions,omitempty"`
+	Failures         int      `json:"failures,omitempty"`
+	// Resolved only: when the endpoint went down, if known.
+	DownSince *time.Time `json:"downSince,omitempty"`
 }
 
 // Title is the one-line summary providers lead with. The group tells apart

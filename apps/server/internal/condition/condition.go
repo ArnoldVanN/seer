@@ -67,6 +67,33 @@ func Evaluate(cond string, ctx *Context) (bool, error) {
 	return compare(op, l, r)
 }
 
+// Describe is cond with the value its left side resolved to, e.g.
+// "[STATUS] (503) == 200", to say why a check failed. Durations read as
+// such, and long values such as a whole body are cut short.
+func Describe(cond string, ctx *Context) string {
+	_, left, _, err := split(cond)
+	if err != nil {
+		return cond
+	}
+	var v string
+	switch left {
+	case "[RESPONSE_TIME]":
+		v = ctx.ResponseTime.Round(time.Millisecond).String()
+	case "[CERTIFICATE_EXPIRATION]":
+		v = ctx.CertificateExpiration.Round(time.Hour).String()
+		v = strings.TrimSuffix(v, "0m0s")
+	default:
+		if v, err = ctx.resolve(left); err != nil || v == left {
+			return cond
+		}
+	}
+	v = strings.Join(strings.Fields(v), " ")
+	if r := []rune(v); len(r) > 80 {
+		v = string(r[:80]) + "…"
+	}
+	return left + " (" + v + ")" + cond[len(left):]
+}
+
 func split(cond string) (op, left, right string, err error) {
 	for _, o := range operators {
 		if i := strings.Index(cond, " "+o+" "); i >= 0 {

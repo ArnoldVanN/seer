@@ -20,6 +20,7 @@ import (
 var ev = Event{
 	Kind: Triggered, AlertType: "x", EndpointKey: "api", EndpointName: "API", Group: "core",
 	Description: "Paging the API team", Error: "status 500", At: time.Date(2026, 10, 29, 8, 0, 0, 0, time.UTC),
+	URL: "https://api.acme.test/health", FailedConditions: []string{"[STATUS] (500) == 200"}, Failures: 3,
 }
 
 // capture serves one request and returns its headers and decoded JSON body.
@@ -67,20 +68,29 @@ func TestSlackAndDiscord(t *testing.T) {
 	}
 	_, body := got()
 	att := body["attachments"].([]any)[0].(map[string]any)
-	if body["text"] != "core / API is down" || att["color"] != "#e5484d" || att["text"] != "Paging the API team\nError: status 500" {
+	if body["text"] != "core / API is down" || att["color"] != "#e5484d" || att["text"] != "Paging the API team\nError: status 500" ||
+		att["title_link"] != "https://api.acme.test/health" {
 		t.Errorf("slack body = %v", body)
+	}
+	if f := att["fields"].([]any)[0].(map[string]any); f["title"] != "Failed conditions" || f["value"] != "```[STATUS] (500) == 200```" {
+		t.Errorf("slack fields = %v", att["fields"])
 	}
 
 	url, got = capture(t, http.StatusNoContent)
 	resolved := ev
-	resolved.Kind, resolved.Error = Resolved, ""
+	down := ev.At.Add(-65 * time.Minute)
+	resolved.Kind, resolved.Error, resolved.FailedConditions, resolved.Failures, resolved.DownSince = Resolved, "", nil, 0, &down
 	if err := (&discord{url: url}).Notify(context.Background(), resolved); err != nil {
 		t.Fatal(err)
 	}
 	_, body = got()
 	emb := body["embeds"].([]any)[0].(map[string]any)
-	if emb["title"] != "core / API is back up" || emb["color"] != float64(colorUp) || emb["description"] != "Paging the API team" {
+	if emb["title"] != "core / API is back up" || emb["color"] != float64(colorUp) || emb["description"] != "Paging the API team" ||
+		emb["url"] != "https://api.acme.test/health" {
 		t.Errorf("discord body = %v", body)
+	}
+	if f := emb["fields"].([]any); len(f) != 1 || f[0].(map[string]any)["name"] != "Downtime" || f[0].(map[string]any)["value"] != "1h5m" {
+		t.Errorf("discord fields = %v", f)
 	}
 }
 
@@ -158,7 +168,8 @@ func TestEmail(t *testing.T) {
 		t.Errorf("recipients = %v", res[:2])
 	}
 	msg := res[2]
-	for _, want := range []string{"Subject: core / API is down\r\n", "To: ops@acme.test, Dev <dev@acme.test>\r\n", "\r\nError: status 500\r\n"} {
+	for _, want := range []string{"Subject: core / API is down\r\n", "To: ops@acme.test, Dev <dev@acme.test>\r\n", "\r\nError: status 500\r\n",
+		"Failed conditions:\r\n  [STATUS] (500) == 200\r\n", "Consecutive failures: 3\r\n", "URL: https://api.acme.test/health\r\n"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message missing %q:\n%s", want, msg)
 		}

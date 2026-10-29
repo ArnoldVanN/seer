@@ -58,3 +58,25 @@ func TestEvaluateErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestDescribe(t *testing.T) {
+	ctx := &Context{
+		Status:                503,
+		ResponseTime:          1234 * time.Millisecond,
+		Body:                  []byte("<html>\n  <body>Service Unavailable</body>\n</html>"),
+		CertificateExpiration: 100 * time.Hour,
+	}
+	cases := map[string]string{
+		"[STATUS] == 200":                 "[STATUS] (503) == 200",
+		"[RESPONSE_TIME] < 500":           "[RESPONSE_TIME] (1.234s) < 500",
+		"[CERTIFICATE_EXPIRATION] > 168h": "[CERTIFICATE_EXPIRATION] (100h) > 168h",
+		"[BODY] == ok":                    "[BODY] (<html> <body>Service Unavailable</body> </html>) == ok",
+		"[BODY].status == UP":             "[BODY].status == UP",
+		"no operator":                     "no operator",
+	}
+	for cond, want := range cases {
+		if got := Describe(cond, ctx); got != want {
+			t.Errorf("Describe(%q) = %q, want %q", cond, got, want)
+		}
+	}
+}

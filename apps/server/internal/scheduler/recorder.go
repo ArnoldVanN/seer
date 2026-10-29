@@ -79,8 +79,9 @@ func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.
 			Failures:  st.ConsecutiveFailures,
 			Successes: st.ConsecutiveSuccesses,
 			Triggered: st.TriggeredAlerts,
+			ChangedAt: st.ChangedAt,
 		}
-		n, evs := next(prev, out.Success, out.Error, spec, out.CheckedAt)
+		n, evs := next(prev, out, spec)
 
 		won, err := r.saveState(ctx, st, n, prev.Status, out, endpointID, evs)
 		if err != nil {
