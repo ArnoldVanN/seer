@@ -1,3 +1,5 @@
-# Managed by monotrack.
-# Commit this file so CI can read it across runs.
-pending: []
+pending:
+    - project: seer
+      tag: v0.0.1
+      oldVersion: v0.0.0
+      newVersion: v0.0.1
