@@ -107,9 +107,6 @@ watcher and the docs site together. Regenerate the demo history with
 | Public / private API | :18080 / :18081                                |
 | Health, metrics      | http://localhost:19090/metrics                 |
 
-Edit `seer.example.yaml` and restart `pnpm dev` to change endpoints. Go
-changes need a restart too; web changes hot-reload.
-
 | Task                                      | Command                                      |
 | ----------------------------------------- | -------------------------------------------- |
 | Unit tests                                | `cd apps/server && go test ./...`            |

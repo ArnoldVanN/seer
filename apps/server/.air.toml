@@ -1,0 +1,19 @@
+root = "../.."
+tmp_dir = "apps/server/tmp"
+
+[build]
+  cmd = "go build -o tmp/seer ./cmd/seer"
+  bin = "./tmp/seer"
+  args_bin = ["all", "-config", "../../seer.example.yaml"]
+  include_dir = ["apps/server"]
+  include_ext = ["go"]
+  include_file = ["seer.example.yaml"]
+  exclude_dir = ["apps/server/tmp", "apps/server/bin", "apps/server/migrations"]
+  exclude_regex = ["_test.go"]
+  delay = 500
+  send_interrupt = true
+  kill_delay = "10s"
+  stop_on_error = true
+
+[misc]
+  clean_on_exit = true

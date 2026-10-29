@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, Boxes, LayoutDashboard, Palette, Server, ShieldCheck } from 'lucide-react';
+import { Activity, Boxes, Globe, Palette, Server, ShieldCheck } from 'lucide-react';
 
 const features = [
   {
@@ -13,9 +13,9 @@ const features = [
     body: 'Workers split endpoints between them. Kill one and its checks move within ~15s.',
   },
   {
-    icon: LayoutDashboard,
-    title: 'Public and private dashboards',
-    body: 'From one deployment, on a path or their own hostname, behind OIDC or an admin login.',
+    icon: Globe,
+    title: 'Multiple sites',
+    body: 'Several status pages on their own hostnames and branding, from one deployment. Public or private, behind OIDC or an admin login.',
   },
   {
     icon: Activity,
