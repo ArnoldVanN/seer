@@ -8,6 +8,7 @@
 
 {{- define "seer.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+app.kubernetes.io/name: seer
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
@@ -71,7 +72,7 @@ metadata:
   name: {{ include "seer.fullname" $root }}-{{ .component }}
   labels:
     {{- include "seer.labels" $root | nindent 4 }}
-    {{- include "seer.selector" . | nindent 4 }}
+    app.kubernetes.io/component: {{ .component }}
 spec:
   {{- if not (and $v.hpa $v.hpa.enabled) }}
   replicas: {{ $v.replicas }}

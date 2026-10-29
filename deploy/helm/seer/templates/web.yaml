@@ -5,7 +5,7 @@ metadata:
   name: {{ $fullname }}-web
   labels:
     {{- include "seer.labels" . | nindent 4 }}
-    {{- include "seer.selector" (dict "root" . "component" "web") | nindent 4 }}
+    app.kubernetes.io/component: web
 spec:
   {{- if not .Values.web.hpa.enabled }}
   replicas: {{ .Values.web.replicas }}
