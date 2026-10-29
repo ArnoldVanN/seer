@@ -1,0 +1,9 @@
+apiVersion: v2
+name: seer
+description: Highly available, self-hosted status pages and uptime monitoring
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [status-page, uptime, monitoring]
+sources:
+  - https://github.com/ArnoldVanN/seer

@@ -1,0 +1,107 @@
+---
+title: Sites
+description: Serve several status pages, each on its own hostname, from one deployment.
+---
+
+A site is a status page on its own hostnames, with its own branding,
+endpoints and dashboards. All sites run on the same workers, and an endpoint
+shown on two sites is still checked once.
+
+```yaml
+ui:
+  logo: https://cdn.example.com/logo.svg   # shared default
+
+sites:
+  - key: home
+    hosts: [status.example.com]
+    ui: { title: Example status }
+    endpoints:
+      - { key: portfolio, group: Sites, url: https://example.com, conditions: ["[STATUS] == 200"] }
+    dashboards:
+      - { key: home, groups: [Sites] }
+      - infra                      # defined at the top level, shared
+  - key: acme
+    hosts: [status.acme.com]
+    ui:
+      title: Acme status
+      homeUrl: https://acme.com
+      customCss: ":root { --seer-accent: #0d9488; }"
+    endpoints:
+      - { key: acme-web, group: Sites, url: https://acme.com, conditions: ["[STATUS] == 200"] }
+    dashboards:
+      - { key: acme, groups: [Sites] }
+      - infra
+
+# Shared by several sites.
+endpoints:
+  - { key: db, group: infra, url: "tcp://db:5432", conditions: ["[CONNECTED] == true"] }
+dashboards:
+  - { key: infra, groups: [infra] }
+```
+
+| Key | |
+|---|---|
+| `key` | Stable id. |
+| `hosts` | Hostnames this site answers on. Required for every site but the first. |
+| `ui` | Overrides the top-level [`ui`](/docs/configuration#ui) field by field. `customCss` and `customCssFile` are added after the top-level CSS instead of replacing it. |
+| `endpoints` | [Endpoints](/docs/configuration/endpoints) that belong to this site. |
+| `dashboards` | In tab order: [dashboard](/docs/configuration/dashboards) definitions that belong to this site, keys of dashboards defined elsewhere, or `["*"]` for every dashboard. Public ones are on the site's root, private ones under `/internal`. |
+| `private` | Require sign-in for the whole site, public dashboards included. |
+| `allowedGroups` | Private sites only: groups that may use the site. Empty means any signed-in user. |
+
+The request's hostname picks the site. The first site also answers on any
+hostname no site lists, such as `localhost` or an in-cluster service name.
+
+Without `sites`, everything is on a single site that answers on any hostname
+and uses the top-level `ui`.
+
+## Groups are per site
+
+A dashboard's `groups` only match endpoints defined next to it: a site's
+dashboards match that site's endpoints, and top-level dashboards match
+top-level endpoints. Both sites above have a "Sites" group, and neither shows
+the other's. To show an endpoint from elsewhere, list it by key in the
+dashboard's `endpoints`.
+
+A dashboard shows the same endpoints wherever it's listed, so sharing a whole
+dashboard (like `infra` above) is the other way to share. A group that
+matches nothing next to its dashboard is a config error, which catches a
+dashboard pointing at another site's group by mistake.
+
+Keys must be unique across the whole file, since they identify endpoints and
+dashboards in the database and in URLs.
+
+## One sign-in for everything
+
+Sign-in is per hostname, so with several sites you'd sign in to each one. For
+an admin view, add a private site with every dashboard instead:
+
+```yaml
+sites:
+  # ...your public sites...
+  - key: admin
+    hosts: [seer.internal.example.com]
+    private: true
+    allowedGroups: [admin]
+    dashboards: ["*"]
+```
+
+Everything there needs sign-in, and only the `admin` group gets in. Each
+dashboard's own `allowedGroups` still applies on top. With OIDC, that's one
+redirect URI to register for everyone who uses it.
+
+The same works for private dashboards on a hostname of their own: a private
+site with just those dashboards.
+
+## Things to know
+
+- **Sign-in is per hostname.** The session cookie belongs to the host, so each
+  site has its own sign-in, and with OIDC each site's
+  `https://<host>/auth/callback` that people sign in on must be an allowed
+  redirect URI. A private admin site (above) means one.
+- **Sites aren't a security boundary.** They decide what each page lists.
+  Who may see a private dashboard is still `allowedGroups`, and public data is
+  public on every site. For tenants that must not see each other at all, run
+  separate deployments.
+- **Kubernetes:** the chart's HTTPRoute takes its hostnames from every site's
+  `hosts` unless `httpRoute.hostnames` is set.

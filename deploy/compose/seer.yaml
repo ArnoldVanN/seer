@@ -1,0 +1,51 @@
+storage:
+  retention:
+    raw: 14d
+
+ui:
+  title: Seer demo
+  description: Three replicas, one Postgres
+  homeUrl: https://github.com/ArnoldVanN/seer
+
+dashboards:
+  - key: status
+    title: Status
+    visibility: public
+    groups: [web, api]
+  - key: ops
+    title: Operations
+    visibility: private
+    groups: [web, api, infra]
+
+endpoints:
+  - key: web-health
+    name: Status page
+    group: web
+    url: http://web:3000/healthz
+    interval: 10s
+    conditions: ["[STATUS] == 200", "[RESPONSE_TIME] < 1000"]
+
+  - key: httpbin
+    name: httpbin
+    group: api
+    url: https://httpbin.org/status/200
+    interval: 30s
+    conditions: ["[STATUS] == 200"]
+
+  - key: api-replicas
+    name: Seer API (round robin)
+    group: api
+    url: http://seer:9090/readyz
+    interval: 10s
+    conditions: ["[STATUS] == 200"]
+
+  - key: postgres
+    name: Postgres
+    group: infra
+    url: tcp://postgres:5432
+    interval: 10s
+    conditions: ["[CONNECTED] == true"]
+    alerts:
+      - type: slack
+        failureThreshold: 2
+        successThreshold: 1

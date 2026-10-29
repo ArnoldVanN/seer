@@ -1,0 +1,191 @@
+# -- Image settings. Tags default to the chart's appVersion.
+image:
+  server:
+    repository: ghcr.io/arnoldvann/seer-server
+    tag: ""
+  web:
+    repository: ghcr.io/arnoldvann/seer-web
+    tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# -- "split" runs separate api and worker Deployments (scale them on their
+# own); "combined" runs one Deployment of `seer all`.
+mode: split
+
+# -- seer.yaml contents (ui, sites, dashboards, endpoints, retention). See
+# https://seer.arnovannieuwenhuyzen.com/docs/configuration. storage.dsn and
+# server.internalJwtSecret are injected from secrets, and server ports are set
+# by the chart; leave them out. httpRoute.hostnames defaults to every site's
+# hosts.
+config:
+  ui:
+    title: Status
+  endpoints: []
+  #  - key: example
+  #    name: Example
+  #    group: web
+  #    url: https://example.com
+  #    interval: 30s
+  #    conditions: ["[STATUS] == 200"]
+
+# -- Custom CSS loaded after the built-in theme. See https://seer.arnovannieuwenhuyzen.com/docs/theming
+customCss: ""
+
+# -- Extra files in the config ConfigMap, mounted at /config/<name>. For
+# CSS files referenced by customCssFile on sites or dashboards, e.g.
+#   files: { aquila.css: "..." }   and   customCssFile: /config/aquila.css
+# With Flux, fill them from files in your repo with valuesFrom.
+files: {}
+
+# -- Your Postgres (bring your own DB). Set dsn, or point at an existing secret.
+database:
+  dsn: ""
+  existingSecret: ""
+  existingSecretKey: dsn
+
+# -- Shared secrets between the web app and the API. Generated and kept across
+# upgrades when left empty, unless existingSecret is set (keys:
+# internal-jwt-secret, session-secret).
+secrets:
+  existingSecret: ""
+  internalJwtSecret: ""
+  sessionSecret: ""
+
+# -- Sign-in for private dashboards. Configure OIDC, the admin account, or both.
+auth:
+  oidc:
+    issuer: ""
+    clientId: ""
+    clientSecret: ""
+    # Or read clientSecret from an existing secret (key: client-secret).
+    existingSecret: ""
+    scopes: "openid profile email"
+    groupsClaim: groups
+    # Who may sign in: any of these groups, or a verified email on these
+    # domains. Both empty admits everyone the provider authenticates, so set
+    # one unless the provider already restricts who can use the app.
+    allowedGroups: []
+    allowedDomains: []
+    # Button label on the login page.
+    name: SSO
+  admin:
+    username: ""
+    # Set one of password or passwordHash. A password is stored in the chart's
+    # secret; prefer existingSecret so it isn't in your values at all.
+    password: ""
+    # bcrypt hash: node -e "console.log(require('bcryptjs').hashSync('pw', 10))"
+    passwordHash: ""
+    # Or read the account from an existing secret (keys: username, and
+    # password or password-hash). A username set above overrides the secret's.
+    existingSecret: ""
+    groups: [admin]
+
+# -- Where private dashboards are served: under a path on the public host, or
+# on their own host (which then needs its own hostname on the HTTPRoute).
+privateDashboards:
+  pathPrefix: /internal
+
+api:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+worker:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # ICMP checks use unprivileged ping. If your nodes don't allow it, set
+  # privilegedIcmp to add NET_RAW instead.
+  privilegedIcmp: false
+
+# Used when mode is combined.
+combined:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { memory: 384Mi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+web:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  extraEnv: []
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+# -- Spread replicas across nodes and zones.
+topologySpread:
+  enabled: true
+
+# -- Apply migrations in a pre-upgrade Job. Pods also migrate on startup under
+# a lock, which covers first installs.
+migrations:
+  job: true
+
+# -- Gateway API routing. Ingress isn't templated; add one via extraObjects if
+# you need it.
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs: []
+  #  - name: public-gateway
+  #    namespace: gateway-system
+  #    sectionName: https
+  # Defaults to the hosts of every site in config.sites.
+  hostnames: []
+  #  - status.example.com
+  # -- Send /rpc straight to the API (recommended). When false, the web app
+  # proxies /rpc itself.
+  directRpc: true
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+# -- Only let web pods reach the private API port.
+networkPolicy:
+  enabled: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# -- Extra manifests rendered with the release (templated).
+extraObjects: []

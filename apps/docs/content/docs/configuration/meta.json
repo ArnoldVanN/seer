@@ -1,0 +1,10 @@
+{
+  "title": "Configuration",
+  "pages": [
+    "index",
+    "endpoints",
+    "dashboards",
+    "sites",
+    "web"
+  ]
+}

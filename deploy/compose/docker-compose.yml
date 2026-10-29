@@ -1,0 +1,65 @@
+# HA demo: three seer replicas sharing one Postgres, plus the web app.
+#
+#   docker compose up -d --build
+#   open http://localhost:3000            (public status page)
+#   open http://localhost:3000/internal   (admin / admin)
+#
+# Kill a replica (docker compose kill seer --index 1 ... or docker kill) and
+# watch its endpoints move to the others within ~15s.
+
+x-seer-env: &seer-env
+  SEER_DB_DSN: postgres://seer:seer@postgres:5432/seer?sslmode=disable
+  SEER_INTERNAL_JWT_SECRET: ${SEER_INTERNAL_JWT_SECRET:-change-me-internal}
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: seer
+      POSTGRES_PASSWORD: seer
+      POSTGRES_DB: seer
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seer -d seer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  seer:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    image: seer-server:dev
+    command: ["all", "-config", "/config/seer.yaml"]
+    environment: *seer-env
+    volumes:
+      - ./seer.yaml:/config/seer.yaml:ro
+    deploy:
+      replicas: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    image: seer-web:dev
+    environment:
+      # Compose's DNS spreads these across the seer replicas.
+      SEER_PUBLIC_API_URL: http://seer:8080
+      SEER_PRIVATE_API_URL: http://seer:8081
+      SEER_INTERNAL_JWT_SECRET: ${SEER_INTERNAL_JWT_SECRET:-change-me-internal}
+      SEER_SESSION_SECRET: ${SEER_SESSION_SECRET:-change-me-session}
+      SEER_PRIVATE_PATH_PREFIX: /internal
+      SEER_ADMIN_USERNAME: admin
+      SEER_ADMIN_PASSWORD: ${SEER_ADMIN_PASSWORD:-admin}
+      SEER_ADMIN_GROUPS: admin
+    ports:
+      - "${SEER_WEB_PORT:-3000}:3000"
+    depends_on:
+      - seer
+
+volumes:
+  db:

@@ -1,0 +1,60 @@
+---
+title: Getting started
+description: Run the HA demo locally, or install Seer on Kubernetes.
+---
+
+## Docker Compose
+
+The compose demo runs three Seer replicas against one Postgres, plus the web
+app:
+
+```sh
+cd deploy/compose
+docker compose up -d --build
+```
+
+Open [localhost:3000](http://localhost:3000) for the public page and
+[localhost:3000/internal](http://localhost:3000/internal) for the private one
+(user `admin`, password `admin`).
+
+`docker kill` one of the replicas and the page keeps updating: its endpoints
+move to the others within ~15s.
+
+Endpoints and dashboards live in `deploy/compose/seer.yaml`. Edit it and
+restart the stack to pick up changes.
+
+## Kubernetes
+
+Install the Helm chart against your own Postgres:
+
+```sh
+helm install seer oci://ghcr.io/arnoldvann/charts/seer \
+  --set database.dsn='postgres://user:pass@db:5432/seer' \
+  --set httpRoute.enabled=true \
+  --set 'httpRoute.parentRefs[0].name=my-gateway' \
+  --set 'httpRoute.hostnames[0]=status.example.com' \
+  -f my-endpoints.yaml
+```
+
+where `my-endpoints.yaml` holds your config under `config:`:
+
+```yaml title="my-endpoints.yaml"
+config:
+  ui:
+    title: Acme status
+  endpoints:
+    - key: website
+      group: web
+      url: https://acme.com
+      interval: 30s
+      conditions: ["[STATUS] == 200"]
+```
+
+See [Kubernetes](/docs/kubernetes) for the chart's options.
+
+## Next steps
+
+- [Configure endpoints](/docs/configuration/endpoints) and their conditions.
+- [Group them into dashboards](/docs/configuration/dashboards), public or private.
+- [Set up sign-in](/docs/authentication) for private dashboards.
+- [Restyle the pages](/docs/theming) with custom CSS.

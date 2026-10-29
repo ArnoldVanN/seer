@@ -1,0 +1,9 @@
+{{- if eq .Values.mode "split" }}
+{{ include "seer.serverDeployment" (dict "root" . "component" "api" "values" .Values.api "command" "api") }}
+---
+{{ include "seer.serverDeployment" (dict "root" . "component" "worker" "values" .Values.worker "command" "worker") }}
+{{- else if eq .Values.mode "combined" }}
+{{ include "seer.serverDeployment" (dict "root" . "component" "combined" "values" .Values.combined "command" "all") }}
+{{- else }}
+{{- fail "mode must be split or combined" }}
+{{- end }}

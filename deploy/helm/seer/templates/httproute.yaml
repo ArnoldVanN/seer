@@ -1,0 +1,56 @@
+{{- if .Values.httpRoute.enabled }}
+{{- $fullname := include "seer.fullname" . -}}
+{{- if not .Values.httpRoute.parentRefs }}
+{{- fail "httpRoute.parentRefs must name your Gateway" }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}
+  {{- /* Defaults to every site's hosts from the Seer config. */}}
+  {{- $hosts := .Values.httpRoute.hostnames }}
+  {{- if not $hosts }}
+  {{- range (.Values.config.sites | default list) }}
+  {{- $hosts = concat $hosts (.hosts | default list) }}
+  {{- end }}
+  {{- end }}
+  {{- with $hosts }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- if .Values.httpRoute.directRpc }}
+    # Browser RPC (including the WatchStatus stream) goes straight to the API.
+    - matches:
+        - path: { type: PathPrefix, value: /rpc/ }
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: / }
+      backendRefs:
+        - { name: {{ $fullname }}-public, port: 8080 }
+      # Streams stay open; "0s" disables the request timeout.
+      timeouts:
+        request: 0s
+    {{- end }}
+    # The private-rpc proxy streams too.
+    - matches:
+        - path: { type: PathPrefix, value: /private-rpc/ }
+      backendRefs:
+        - { name: {{ $fullname }}-web, port: 3000 }
+      timeouts:
+        request: 0s
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - { name: {{ $fullname }}-web, port: 3000 }
+{{- end }}

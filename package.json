@@ -1,0 +1,21 @@
+{
+  "name": "seer",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Highly available, self-hosted status pages and uptime monitoring",
+  "scripts": {
+    "predev": "./scripts/dev-db-up.sh",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "gen": "./scripts/gen.sh",
+    "db:up": "./scripts/dev-db-up.sh",
+    "migrate:diff": "./scripts/migrate-diff.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

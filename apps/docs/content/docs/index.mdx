@@ -1,0 +1,48 @@
+---
+title: Introduction
+description: Highly available, self-hosted status pages and uptime monitoring.
+---
+
+Seer checks your endpoints (HTTP, TCP, DNS, ICMP) and serves a public status
+page, plus private dashboards for your team. It's configured from one YAML
+file, like [Gatus](https://github.com/TwiN/gatus), but every replica is
+stateless, so you can run as many as you want:
+
+- **Bring your own Postgres.** All state lives there; no SQLite, no local disk.
+- **Checks are sharded across workers.** Kill one and its endpoints move to
+  the others within ~15s. A check never runs twice for the same interval, and
+  an alert never fires twice.
+- **Public and private dashboards** from one deployment, on a path
+  (`/internal`) or a separate hostname, behind OIDC or an admin login.
+- **Live updates** streamed to the browser, from any replica.
+- **Long history without a time-series DB.** Rollups keep 2 years of hourly
+  and unlimited daily history cheaply. Prometheus metrics are exported too.
+- **Custom CSS** through a documented set of CSS variables and class names
+  (the UI is Tailwind + shadcn/ui, themed from those variables).
+- **Helm chart** with Gateway API routing.
+
+## A first config
+
+```yaml title="seer.yaml"
+dashboards:
+  - { key: status, title: Status, visibility: public, groups: [web, api] }
+  - { key: ops, title: Operations, visibility: private, allowedGroups: [sre], groups: [web, api, infra] }
+
+endpoints:
+  - key: api
+    group: api
+    url: https://api.example.com/health
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == UP"
+      - "[RESPONSE_TIME] < 500"
+      - "[CERTIFICATE_EXPIRATION] > 7d"
+```
+
+<Cards>
+  <Card title="Getting started" href="/docs/getting-started" description="Run the HA demo with Docker Compose, or install on Kubernetes." />
+  <Card title="Configuration" href="/docs/configuration" description="Every key in seer.yaml." />
+  <Card title="Authentication" href="/docs/authentication" description="OIDC and the admin account for private dashboards." />
+  <Card title="Architecture" href="/docs/architecture" description="How replicas share work without talking to each other." />
+</Cards>

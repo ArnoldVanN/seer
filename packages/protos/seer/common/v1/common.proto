@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package seer.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_UP = 1;
+  STATUS_DOWN = 2;
+  // Configured but not checked yet.
+  STATUS_UNKNOWN = 3;
+}
+
+enum Visibility {
+  VISIBILITY_UNSPECIFIED = 0;
+  VISIBILITY_PUBLIC = 1;
+  VISIBILITY_PRIVATE = 2;
+}
+
+// HistoryRange picks both the window and the bucket size of the history bars.
+enum HistoryRange {
+  HISTORY_RANGE_UNSPECIFIED = 0;
+  // 24 hourly buckets.
+  HISTORY_RANGE_24H = 1;
+  // 168 hourly buckets.
+  HISTORY_RANGE_7D = 2;
+  // 30 daily buckets.
+  HISTORY_RANGE_30D = 3;
+  // 90 daily buckets.
+  HISTORY_RANGE_90D = 4;
+  // 365 daily buckets.
+  HISTORY_RANGE_1Y = 5;
+}
+
+message HistoryBucket {
+  google.protobuf.Timestamp start = 1;
+  int64 checks = 2;
+  int64 successes = 3;
+  // Mean response time over the bucket, in milliseconds.
+  double avg_response_time_ms = 4;
+  int64 min_response_time_ms = 5;
+  int64 max_response_time_ms = 6;
+}
+
+message Endpoint {
+  string key = 1;
+  string name = 2;
+  string group = 3;
+  Status status = 4;
+  google.protobuf.Timestamp last_checked_at = 5;
+  int64 last_response_time_ms = 6;
+  // Uptime over the requested history range, 0..1.
+  double uptime = 7;
+  repeated HistoryBucket history = 8;
+}
+
+message EndpointGroup {
+  string name = 1;
+  repeated Endpoint endpoints = 2;
+}
+
+message DashboardSummary {
+  string key = 1;
+  string title = 2;
+  Visibility visibility = 3;
+}
+
+message Dashboard {
+  string key = 1;
+  string title = 2;
+  Visibility visibility = 3;
+  repeated EndpointGroup groups = 4;
+  // CSS for this dashboard's page, after the site's.
+  string custom_css = 5;
+}
+
+message Result {
+  google.protobuf.Timestamp checked_at = 1;
+  bool success = 2;
+  int64 response_time_ms = 3;
+  string error = 4;
+}
+
+message ListDashboardsRequest {}
+
+message ListDashboardsResponse {
+  repeated DashboardSummary dashboards = 1;
+}
+
+message GetDashboardRequest {
+  string key = 1;
+  HistoryRange history_range = 2;
+}
+
+message GetDashboardResponse {
+  Dashboard dashboard = 1;
+}
+
+message GetEndpointHistoryRequest {
+  string key = 1;
+  HistoryRange history_range = 2;
+}
+
+message GetEndpointHistoryResponse {
+  Endpoint endpoint = 1;
+  // Most recent raw results, newest first.
+  repeated Result recent_results = 2;
+}
+
+message WatchStatusRequest {
+  string dashboard_key = 1;
+}
+
+message EndpointUpdate {
+  string key = 1;
+  Status status = 2;
+  google.protobuf.Timestamp checked_at = 3;
+  int64 response_time_ms = 4;
+  bool success = 5;
+}
+
+message Heartbeat {
+  google.protobuf.Timestamp at = 1;
+}
+
+message StatusEvent {
+  oneof event {
+    EndpointUpdate endpoint_update = 1;
+    // Sent every 15s so proxies keep the stream open.
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message SiteConfig {
+  // Was a list of header links, replaced by home_url.
+  reserved 5;
+  reserved "links";
+
+  string title = 1;
+  string description = 2;
+  // Empty means the default Seer logo; "none" hides it.
+  string logo_url = 3;
+  string favicon_url = 4;
+  // User CSS, loaded after the built-in styles.
+  string custom_css = 6;
+  // Logo for dark mode. Empty falls back to logo_url.
+  string logo_dark_url = 7;
+  // Where the logo links to, e.g. the main site. Empty links to the status page.
+  string home_url = 8;
+  // The site this config is for. See Config.sites.
+  string key = 9;
+  // Everything on the site needs sign-in, public dashboards included.
+  bool private = 10;
+  // The site lists at least one private dashboard, so its private path
+  // prefix has something behind it.
+  bool has_private = 11;
+}
+
+message GetSiteConfigRequest {}
+
+message GetSiteConfigResponse {
+  SiteConfig site = 1;
+}

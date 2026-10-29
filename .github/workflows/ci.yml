@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: seer
+          POSTGRES_PASSWORD: seer
+          POSTGRES_DB: seer
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U seer -d seer"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: Install protoc plugins
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.20.0
+      - name: Generate
+        working-directory: packages/protos
+        run: |
+          buf lint
+          buf generate --template buf.gen.go.yaml
+      - name: ent code is up to date
+        working-directory: apps/server
+        run: |
+          go generate ./ent
+          git diff --exit-code -- ent
+      - name: Vet
+        working-directory: apps/server
+        run: go vet ./...
+      - name: Test
+        working-directory: apps/server
+        env:
+          SEER_TEST_DSN: postgres://seer:seer@localhost:5432/seer?sslmode=disable
+        run: go test -race ./...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate TS protos
+        working-directory: packages/protos
+        run: ./node_modules/.bin/buf generate --template buf.gen.ts.yaml && pnpm build
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter docs
+      - name: Build
+        working-directory: apps/docs
+        run: pnpm build
+      - name: Lint
+        working-directory: apps/docs
+        run: pnpm lint
+      - name: Typecheck
+        working-directory: apps/docs
+        run: pnpm typecheck
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+      - name: Lint
+        run: |
+          helm lint deploy/helm/seer --set database.dsn=postgres://x
+          helm template t deploy/helm/seer --set database.dsn=postgres://x --set mode=combined > /dev/null
+          helm template t deploy/helm/seer --set database.dsn=postgres://x \
+            --set httpRoute.enabled=true --set 'httpRoute.parentRefs[0].name=gw' \
+            --set 'config.sites[0].key=a' --set 'config.sites[0].hosts[0]=status.example.com' \
+            --set 'config.sites[0].dashboards[0]=status' > /dev/null

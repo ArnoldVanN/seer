@@ -1,0 +1,44 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.14.0",
+    "@connectrpc/connect": "^2.3.0",
+    "@connectrpc/connect-node": "^2.3.0",
+    "@connectrpc/connect-web": "^2.3.0",
+    "@seer/protos": "workspace:*",
+    "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "jose": "^6.2.13",
+    "lucide-react": "^1.63.0",
+    "next": "16.4.3",
+    "openid-client": "^6.8.8",
+    "radix-ui": "^1.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "3.8.0",
+    "server-only": "^0.0.1",
+    "shadcn": "^4.23.0",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

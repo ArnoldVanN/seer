@@ -1,0 +1,20 @@
+# Local dev database. Started by scripts/dev-db-up.sh.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: seer
+      POSTGRES_PASSWORD: seer
+      POSTGRES_DB: seer
+    ports:
+      - "5433:5432"
+    volumes:
+      - seer-dev-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seer -d seer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  seer-dev-db:

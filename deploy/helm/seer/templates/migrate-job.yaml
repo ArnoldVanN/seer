@@ -1,0 +1,41 @@
+{{- if .Values.migrations.job }}
+# Applies migrations before upgraded pods roll. On first install the pods
+# migrate themselves (under an advisory lock), since the DB secret doesn't
+# exist yet when pre-install hooks run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "seer.fullname" . }}-migrate
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "seer.selector" (dict "root" . "component" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "seer.serverImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate", "-config", "/nonexistent"]
+          env:
+            - name: SEER_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "seer.dbSecretName" . }}
+                  key: {{ .Values.database.existingSecretKey }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+{{- end }}

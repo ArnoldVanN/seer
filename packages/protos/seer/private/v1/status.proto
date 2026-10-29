@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package seer.private.v1;
+
+import "seer/common/v1/common.proto";
+
+// Served on the internal port only, behind the internal JWT. Returns public
+// dashboards plus the private ones the caller's groups allow.
+service PrivateStatusService {
+  rpc ListDashboards(seer.common.v1.ListDashboardsRequest) returns (seer.common.v1.ListDashboardsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetDashboard(seer.common.v1.GetDashboardRequest) returns (seer.common.v1.GetDashboardResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetEndpointHistory(seer.common.v1.GetEndpointHistoryRequest) returns (seer.common.v1.GetEndpointHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc WatchStatus(seer.common.v1.WatchStatusRequest) returns (stream seer.common.v1.StatusEvent);
+}

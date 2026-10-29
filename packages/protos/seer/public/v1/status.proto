@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package seer.public.v1;
+
+import "seer/common/v1/common.proto";
+
+// Served on the public port. Only returns dashboards with public visibility,
+// and only endpoints that are part of one.
+service StatusService {
+  // Branding and routing settings for the web app.
+  rpc GetSiteConfig(seer.common.v1.GetSiteConfigRequest) returns (seer.common.v1.GetSiteConfigResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListDashboards(seer.common.v1.ListDashboardsRequest) returns (seer.common.v1.ListDashboardsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetDashboard(seer.common.v1.GetDashboardRequest) returns (seer.common.v1.GetDashboardResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetEndpointHistory(seer.common.v1.GetEndpointHistoryRequest) returns (seer.common.v1.GetEndpointHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc WatchStatus(seer.common.v1.WatchStatusRequest) returns (stream seer.common.v1.StatusEvent);
+}

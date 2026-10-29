@@ -1,0 +1,100 @@
+---
+title: Kubernetes
+description: Install and tune the Helm chart.
+---
+
+The chart is published with every release, versioned like the images it
+defaults to. It needs a Postgres you provide; the rest (secrets shared between
+the web app and the API, migrations, routing) it handles itself.
+
+```sh
+helm install seer oci://ghcr.io/arnoldvann/charts/seer --version <version> -f values.yaml
+```
+
+From a checkout, use `deploy/helm/seer` in place of the OCI reference.
+
+```yaml title="values.yaml"
+database:
+  dsn: postgres://seer:secret@postgres:5432/seer
+
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: public-gateway
+      namespace: gateway-system
+      sectionName: https
+  hostnames:
+    - status.example.com
+
+auth:
+  oidc:
+    issuer: https://auth.example.com
+    clientId: seer
+    existingSecret: seer-oidc # key: client-secret
+    allowedGroups: [sre]
+
+config:
+  ui:
+    title: Acme status
+  dashboards:
+    - { key: status, title: Status, visibility: public, groups: [web] }
+  endpoints:
+    - key: website
+      group: web
+      url: https://acme.com
+      conditions: ["[STATUS] == 200"]
+```
+
+`config` is the [seer.yaml](/docs/configuration) contents. Leave out
+`storage.dsn` and `server.internalJwtSecret`: the chart injects them from
+secrets.
+
+## Modes
+
+| `mode` | |
+|---|---|
+| `split` (default) | Separate `api` and `worker` Deployments, scaled independently (`api.replicas`, `worker.replicas`, `api.hpa`). |
+| `combined` | One Deployment running `seer all` (`combined.replicas`). Fewer pods for small installs. |
+
+The web app always runs as its own Deployment (`web.*`).
+
+## Database and secrets
+
+| Value | |
+|---|---|
+| `database.dsn` | Postgres connection string. |
+| `database.existingSecret` / `existingSecretKey` | Read the DSN from an existing secret instead (key default `dsn`). |
+| `secrets.existingSecret` | Bring your own `internal-jwt-secret` and `session-secret`. When empty, the chart generates them and keeps them across upgrades. |
+| `auth.oidc.existingSecret` | Read the OIDC client secret from an existing secret (key `client-secret`). |
+| `auth.admin.existingSecret` | Read the admin account from an existing secret (keys `username`, and `password` or `password-hash`). See [Authentication](/docs/authentication). |
+
+Migrations run in a pre-upgrade Job (`migrations.job`). Pods also migrate on
+startup under a lock, which covers first installs.
+
+## Routing
+
+Only Gateway API is templated. With `httpRoute.directRpc` (the default) the
+route sends `/rpc` straight to the API's public port, and everything else to
+the web app. Add an Ingress through `extraObjects` if you need one.
+
+`httpRoute.hostnames` defaults to the hosts of every site in `config.sites`
+(see [Sites](/docs/configuration/sites)), so adding a site to the config also
+routes it.
+
+<Callout type="warn">
+  Never route the private API port (8081) from outside the cluster. Set
+  `networkPolicy.enabled` to only let web pods reach it.
+</Callout>
+
+## Operations
+
+| Value | |
+|---|---|
+| `metrics.serviceMonitor.enabled` | Scrape every API and worker pod with the Prometheus operator. |
+| `podDisruptionBudget` | On by default, `maxUnavailable: 1`. |
+| `topologySpread.enabled` | Spread replicas across nodes and zones. On by default. |
+| `worker.privilegedIcmp` | Add `NET_RAW` when nodes don't allow unprivileged ping. |
+| `customCss` | Mounted and served at `/custom.css`; see [Theming](/docs/theming). |
+| `image.server.tag` / `image.web.tag` | Default to the chart's `appVersion`. |
+
+See `values.yaml` in the chart for everything else.

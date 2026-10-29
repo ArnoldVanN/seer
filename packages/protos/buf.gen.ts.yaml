@@ -1,0 +1,9 @@
+# TypeScript only: used by the web Docker build. scripts/gen.sh runs both templates.
+version: v2
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen/ts
+    include_imports: true
+    opt:
+      - target=ts
+      - json_types=true

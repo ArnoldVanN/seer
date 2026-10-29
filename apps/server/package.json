@@ -1,0 +1,11 @@
+{
+  "name": "server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "go build -o ./bin/seer ./cmd/seer",
+    "test": "go test ./...",
+    "lint": "go vet ./...",
+    "dev": "SEER_DB_DSN=${SEER_DB_DSN:-postgres://seer:seer@localhost:5433/seer?sslmode=disable} SEER_INTERNAL_JWT_SECRET=${SEER_INTERNAL_JWT_SECRET:-dev-internal-secret} SEER_PUBLIC_PORT=18080 SEER_PRIVATE_PORT=18081 SEER_OPS_PORT=19090 SEER_LOG_FORMAT=console go run ./cmd/seer all -config ../../seer.example.yaml"
+  }
+}

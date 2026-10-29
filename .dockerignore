@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/bin
+**/tmp
+packages/protos/gen
+apps/docs/out
+apps/docs/.source
+.git
+*.log
+.env*

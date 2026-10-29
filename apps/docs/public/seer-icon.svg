@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <title>Seer</title>
+  <style>
+    .ink { fill: #16181D; }
+    .ink-stroke { stroke: #16181D; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #F4F3EF; }
+      .ink-stroke { stroke: #F4F3EF; }
+    }
+  </style>
+  <defs>
+    <mask id="cut1" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
+      <rect width="200" height="200" fill="#fff"/>
+      <path d="M 97 194 C 97 176 124 168 118 150 S 92 128 96 104 S 104 74 112 56 S 128 22 108 6 C 142 22 140 42 132 58 S 112 84 116 104 S 140 132 128 152 S 112 178 111 194 Z" fill="#000" stroke="#000" stroke-width="12" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <g mask="url(#cut1)">
+    <path d="M 112 66 Q 58 66 30 100 Q 58 134 112 134" fill="none" class="ink-stroke" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="88" cy="100" r="24" fill="#1F9E89"/>
+    <circle cx="90" cy="100" r="9" fill="#16181D"/>
+    <circle cx="83" cy="93" r="3.5" fill="#F4F3EF"/>
+    <path class="ink" transform="translate(-7 0)" d="M 112 194 C 112 176 140 166 136 146 S 112 122 118 100 S 140 70 146 54 S 152 36 140 26 C 166 38 168 56 160 70 S 138 92 140 110 S 160 140 152 156 S 124 178 124 194 Z"/>
+  </g>
+  <path d="M 97 194 C 97 176 124 168 118 150 S 92 128 96 104 S 104 74 112 56 S 128 22 108 6 C 142 22 140 42 132 58 S 112 84 116 104 S 140 132 128 152 S 112 178 111 194 Z" class="ink"/>
+</svg>

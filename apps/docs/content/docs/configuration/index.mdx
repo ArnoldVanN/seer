@@ -1,0 +1,57 @@
+---
+title: Overview
+description: The seer.yaml file, storage, ports and page settings.
+---
+
+The server reads one YAML file (`-config`, or `SEER_CONFIG`, default
+`seer.yaml`). `${VAR}` references are expanded from the environment first.
+Unknown keys are rejected.
+
+All replicas sync the endpoint and dashboard definitions into the database on
+startup, so they always agree. During a rolling upgrade the newer config wins:
+the Helm chart passes the release revision as `SEER_CONFIG_GENERATION`.
+Endpoints removed from the file are disabled, not deleted, so their history
+survives.
+
+The file has these top-level sections: `storage`, `server`, `ui`,
+[`sites`](/docs/configuration/sites) (optional),
+[`dashboards`](/docs/configuration/dashboards) and
+[`endpoints`](/docs/configuration/endpoints). The web app is configured
+separately, [through environment variables](/docs/configuration/web).
+
+## storage
+
+| Key | Default | |
+|---|---|---|
+| `type` | `postgres` | Only Postgres for now. |
+| `dsn` | `$SEER_DB_DSN` | Postgres connection string. |
+| `retention.raw` | `14d` | Individual check results. |
+| `retention.rollup5m` | `90d` | 5-minute aggregates. |
+| `retention.rollup1h` | `2y` | Hourly aggregates. |
+| `retention.rollup1d` | `0` (forever) | Daily aggregates. |
+
+Durations take Go units plus `d`, `w` and `y` (365 days).
+
+## server
+
+| Key | Default | |
+|---|---|---|
+| `publicPort` | `8080` | Public API. Safe to expose. |
+| `privatePort` | `8081` | Private API. Keep it inside the cluster. |
+| `opsPort` | `9090` | `/healthz`, `/readyz`, `/metrics`. |
+| `corsOrigins` | any | Origins allowed to call the public API from browsers. |
+| `internalJwtSecret` | `$SEER_INTERNAL_JWT_SECRET` | Shared with the web app. The private port is off without it. |
+
+## ui
+
+| Key | |
+|---|---|
+| `title`, `description` | Page title and meta description. |
+| `logo` | Header logo URL. Unset shows the Seer logo; `none` hides it. |
+| `logoDark` | Logo for dark mode. Unset uses `logo` (or Seer's white logo when `logo` is unset too). |
+| `favicon` | Favicon URL. Unset uses the Seer icon. |
+| `homeUrl` | Where the logo links to, e.g. your main site. Unset links to the status page. |
+| `customCss` / `customCssFile` | See [Theming](/docs/theming). |
+
+With [sites](/docs/configuration/sites), these are the defaults each site
+overrides.

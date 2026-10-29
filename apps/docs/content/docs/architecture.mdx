@@ -1,0 +1,78 @@
+---
+title: Architecture
+description: How stateless replicas share checks, alerts and live updates.
+---
+
+```
+ status.example.com ──► Gateway ──┬─ /rpc ────► seer :8080 public API
+ internal.example.com ────────────┤
+                                  └─ / ───────► web (Next.js) ──► seer :8081 private API
+ seer workers ───────────────────────────────────────────────────► Postgres
+```
+
+One Go binary runs as `seer api`, `seer worker`, or `seer all`. No replica
+keeps state; Postgres is the only shared thing.
+
+## Three ports
+
+- **8080 public:** Connect API that only returns public dashboards and the
+  endpoints on them. Browsers call it directly (`/rpc`) for live updates.
+- **8081 private:** the same API including private dashboards. Every call needs
+  a 60-second HS256 token that the web app signs with the shared secret after
+  checking the user's session. Never route it from outside the cluster.
+- **9090 ops:** health checks and Prometheus metrics.
+
+Visibility is decided in one place (`internal/rpc`): the web app has no
+database access.
+
+## How workers share checks
+
+1. Every worker upserts a heartbeat row every 5s. A worker is live if its
+   heartbeat is under 15s old.
+2. Each worker reads the live set and runs rendezvous hashing on each endpoint
+   key. Every worker computes the same owner for every endpoint, without
+   talking to each other. When a worker joins or leaves, only its share moves.
+3. Checks run on slots: windows of one interval, offset per endpoint so they
+   don't all fire together. A result's `(endpoint, slot)` is unique, so if two
+   workers briefly both own an endpoint during a handoff, only one result is
+   stored, and only that result moves the state.
+4. The status and alert state is updated with an optimistic version check. Only
+   the write that wins sends notifications, so each alert goes out once.
+5. A worker that shuts down cleanly deregisters, so the others take over at
+   their next tick. One that crashes is replaced within ~15–20s.
+
+Rollups, retention, and config sync run under Postgres advisory locks: any
+replica can run them, one at a time.
+
+## Live updates
+
+After storing a result, the worker sends `NOTIFY seer_results`. Every API
+replica holds one `LISTEN` connection and pushes matching updates to its
+`WatchStatus` streams, so a browser connected to any replica sees results from
+every worker. Streams send a heartbeat every 15s to keep proxies from closing
+them, and clients reconnect with backoff and refetch the page snapshot.
+
+Private dashboards stream through the web app (`/private-rpc`), which checks
+the session and adds the internal token.
+
+## History and scale
+
+| Table | Granularity | Default retention | Used for |
+|---|---|---|---|
+| `results` | each check | 14 days | latest status, recent checks |
+| `rollups` 5m | 5 minutes | 90 days | (source for hourly) |
+| `rollups` 1h | 1 hour | 2 years | 24h and 7d views |
+| `rollups` 1d | 1 day | forever | 30d, 90d and 1y views |
+
+Dashboards only read rollups. 500 endpoints checked every 30 seconds produce
+~1.4M raw rows a day, but only ~9M hourly rows over two years, which Postgres
+serves in milliseconds.
+
+For more, there are two routes (the first is planned, the second works today):
+
+- **TimescaleDB:** same Postgres DSN, with the results table as a hypertable
+  and compression for long raw retention.
+- **Prometheus / VictoriaMetrics / Mimir:** each worker exports
+  `seer_endpoint_up`, `seer_endpoint_response_seconds` and `seer_checks_total`
+  for the endpoints it owns. Scrape every worker pod (the chart's
+  ServiceMonitor does) and build Grafana dashboards on your own TSDB.

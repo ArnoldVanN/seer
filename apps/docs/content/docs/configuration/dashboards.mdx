@@ -1,0 +1,42 @@
+---
+title: Dashboards
+description: Group endpoints into public and private status pages.
+---
+
+```yaml
+dashboards:
+  - key: status
+    title: Status
+    visibility: public
+    groups: [web, api]
+  - key: ops
+    title: Operations
+    visibility: private
+    allowedGroups: [sre]
+    groups: [web, api, infra]
+```
+
+| Key | |
+|---|---|
+| `key` | Stable id, used in URLs (`/d/<key>`). |
+| `title` | |
+| `visibility` | `public` or `private`. |
+| `groups` | Endpoint groups shown, in order. With [sites](/docs/configuration/sites), groups only match endpoints defined next to the dashboard. |
+| `endpoints` | Extra endpoint keys to include. |
+| `customCss` / `customCssFile` | CSS for this dashboard's page, after the site's. It stays loaded after navigating to another page, so scope rules with `[data-dashboard="<key>"]`. |
+| `allowedGroups` | Private only: auth groups that may view it. Empty means any signed-in user (see [Authentication](/docs/authentication)). |
+
+With no dashboards configured, one public dashboard shows every endpoint.
+
+<Callout>
+  An endpoint is visible publicly only if it's on a public dashboard; there's
+  no per-endpoint visibility.
+</Callout>
+
+## Where private dashboards are served
+
+Private dashboards live under `/internal` on each site (set with
+`SEER_PRIVATE_PATH_PREFIX`; see [Web app](/docs/configuration/web)). For
+private dashboards on a hostname of their own, give them their own
+[site](/docs/configuration/sites). On a site with no private dashboards, `/internal`
+is a 404.

@@ -1,0 +1,31 @@
+{{- $cfg := deepCopy .Values.config -}}
+{{- $server := dict "publicPort" 8080 "privatePort" 8081 "opsPort" 9090 -}}
+{{- $_ := set $cfg "server" (merge (get $cfg "server" | default dict) $server) -}}
+{{- if .Values.customCss }}
+{{- $ui := get $cfg "ui" | default dict -}}
+{{- if get $ui "customCssFile" }}
+{{- fail "customCss sets config.ui.customCssFile; use one or the other (or put your file in files:)" }}
+{{- end }}
+{{- $_ := set $ui "customCssFile" "/config/custom.css" -}}
+{{- $_ := set $cfg "ui" $ui -}}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "seer.fullname" . }}-config
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+data:
+  seer.yaml: |
+    {{- toYaml $cfg | nindent 4 }}
+  {{- if .Values.customCss }}
+  custom.css: |
+    {{- .Values.customCss | nindent 4 }}
+  {{- end }}
+  {{- range $name, $content := .Values.files }}
+  {{- if or (eq $name "seer.yaml") (and $.Values.customCss (eq $name "custom.css")) }}
+  {{- fail (printf "files: %s is reserved" $name) }}
+  {{- end }}
+  {{ $name }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}

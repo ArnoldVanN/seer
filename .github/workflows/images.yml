@@ -1,0 +1,59 @@
+name: Images
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "apps/docs/**"
+      - "**/*.md"
+  workflow_call:
+    inputs:
+      version:
+        description: "Release tag to publish, e.g. v1.2.3"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [server, web]
+    env:
+      RELEASE: ${{ inputs.version && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.version || github.sha }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/seer-${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ env.RELEASE }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }},enable=${{ env.RELEASE }}
+            type=raw,value=latest,enable=${{ env.RELEASE }}
+            type=sha,enable=${{ env.RELEASE == 'false' }}
+            type=raw,value=edge,enable=${{ env.RELEASE == 'false' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.image }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

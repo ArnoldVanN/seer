@@ -1,0 +1,102 @@
+---
+title: Theming
+description: Restyle the status pages with custom CSS.
+---
+
+Set `ui.customCss` (inline) or `ui.customCssFile` (a path; the Helm chart's
+`customCss` value mounts one) and Seer serves it at `/custom.css`, after the
+built-in styles.
+
+With [sites](/docs/configuration/sites), each site's `ui.customCss` is added
+after the top-level CSS, so shared rules go at the top level and per-site
+colors on the site. A [dashboard](/docs/configuration/dashboards) can add its
+own `customCss` or `customCssFile` on top.
+
+### CSS files with Helm and GitOps
+
+The chart's `files` value adds files to its config map, mounted at
+`/config/<name>`, so `customCssFile` can point at them:
+
+```yaml
+files:
+  aquila.css: |
+    [data-dashboard="aquila"] { --seer-accent: #0d9488; }
+config:
+  dashboards:
+    - { key: aquila, groups: [aquila], customCssFile: /config/aquila.css }
+```
+
+With Flux, keep the CSS as a real file in your repo: generate a ConfigMap from
+it with kustomize's `configMapGenerator`, and pull it into the values with
+`valuesFrom` (`targetPath: files.aquila\.css`).
+
+## Stable hooks
+
+These are a public contract and won't change without a major version:
+
+**CSS variables** (on `:root`, with dark-mode values under
+`prefers-color-scheme: dark`):
+
+```
+--seer-font  --seer-font-mono  --seer-radius  --seer-max-width
+--seer-bg  --seer-surface  --seer-subtle  --seer-border  --seer-text  --seer-muted
+--seer-accent  --seer-accent-foreground
+--seer-up  --seer-partial  --seer-down  --seer-unknown  --seer-nodata
+```
+
+The UI is built with Tailwind and shadcn/ui. shadcn's tokens (`--background`,
+`--primary`, `--border`, `--chart-1`, …) are derived from these variables, so
+overriding a `--seer-*` variable restyles every component that uses it. Set
+`--seer-accent-foreground` along with `--seer-accent` so button text stays
+readable.
+
+**Classes** (stable hooks on elements; style them freely): `seer-header`,
+`seer-brand`, `seer-logo`, `seer-title`, `seer-main`,
+`seer-footer`, `seer-tabs`, `seer-tab`, `seer-toolbar`, `seer-ranges`,
+`seer-range`, `seer-overall`, `seer-live`, `seer-dashboard`, `seer-group`,
+`seer-group-title`, `seer-endpoints`, `seer-endpoint`, `seer-endpoint-name`,
+`seer-endpoint-meta`, `seer-uptime`, `seer-status-dot`, `seer-history`,
+`seer-history-bar`, `seer-history-tooltip`, `seer-filters`, `seer-search`,
+`seer-status-filter`, `seer-empty`, `seer-endpoint-detail`, `seer-stats`, `seer-rt-chart`,
+`seer-results`, `seer-login`, `seer-account`.
+
+Built-in styles are Tailwind utilities, so your rules usually win at equal
+specificity; add a class or attribute to the selector if one doesn't.
+
+**Attributes:**
+
+| Attribute | On | Values |
+|---|---|---|
+| `data-status` | endpoint rows, status dots | `up`, `down`, `unknown` |
+| `data-level` | history bars | `ok`, `partial`, `down`, `none` |
+| `data-state` | `.seer-overall` | `operational`, `degraded`, `outage` |
+| `data-dashboard`, `data-group`, `data-endpoint` | containers | the config key |
+| `data-visibility` | tabs | `public`, `private` |
+| `data-live` | `.seer-live` | `true`, `false` |
+| `data-collapsed` | `.seer-group` | `true`, `false` |
+| `data-scheme` | `.seer-logo`, when a light and dark logo are both shown | `light`, `dark` |
+
+## Examples
+
+```css
+/* Brand colors, square corners */
+:root {
+  --seer-accent: #7c3aed;
+  --seer-accent-foreground: #fff;
+  --seer-radius: 0;
+}
+
+/* Always dark */
+:root {
+  --seer-bg: #0b0b0d;
+  --seer-surface: #151518;
+  --seer-text: #f4f4f5;
+  --seer-border: #27272a;
+}
+
+/* Hide one group's response times */
+[data-group="internal"] .seer-endpoint-meta { display: none; }
+
+/* Taller history bars */
+.seer-history.seer-history { height: 40px; }
+```

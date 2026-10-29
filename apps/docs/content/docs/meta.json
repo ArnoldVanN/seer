@@ -1,0 +1,15 @@
+{
+  "title": "Seer",
+  "pages": [
+    "index",
+    "getting-started",
+    "---Guides---",
+    "configuration",
+    "authentication",
+    "theming",
+    "kubernetes",
+    "---Internals---",
+    "architecture",
+    "development"
+  ]
+}

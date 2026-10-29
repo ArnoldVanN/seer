@@ -1,0 +1,15 @@
+Seer is installed ({{ .Values.mode }} mode).
+
+{{- if .Values.httpRoute.enabled }}
+Status page: {{ range .Values.httpRoute.hostnames }}https://{{ . }} {{ end }}
+{{- else }}
+No HTTPRoute is enabled. To try it locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "seer.fullname" . }}-web 3000:3000
+{{- end }}
+
+Private dashboards: {{ if eq .Values.privateDashboards.mode "host" }}https://{{ .Values.privateDashboards.host }}{{ else }}{{ .Values.privateDashboards.pathPrefix }} on the status host{{ end }}
+{{- if not (or .Values.auth.oidc.issuer .Values.auth.admin.username) }}
+
+WARNING: no sign-in method is configured (auth.oidc or auth.admin), so
+private dashboards can't be opened.
+{{- end }}

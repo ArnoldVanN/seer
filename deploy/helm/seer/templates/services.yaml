@@ -1,0 +1,58 @@
+{{- $fullname := include "seer.fullname" . -}}
+{{- $api := include "seer.apiComponent" . -}}
+# Public API: safe to expose, only returns public dashboards.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-public
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "seer.selector" (dict "root" . "component" $api) | nindent 4 }}
+  ports:
+    - { name: public, port: 8080, targetPort: public, appProtocol: http }
+---
+# Private API: cluster-internal, called by the web app with signed tokens.
+# Never route this from a Gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-private
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "seer.selector" (dict "root" . "component" $api) | nindent 4 }}
+  ports:
+    - { name: private, port: 8081, targetPort: private, appProtocol: http }
+---
+# Every server pod, for metrics. Workers export the endpoints they own, so
+# scrape them all.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-metrics
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+    app.kubernetes.io/role: server-metrics
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: seer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/role: server
+  ports:
+    - { name: ops, port: 9090, targetPort: ops }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "seer.selector" (dict "root" . "component" "web") | nindent 4 }}
+  ports:
+    - { name: http, port: 3000, targetPort: http, appProtocol: http }

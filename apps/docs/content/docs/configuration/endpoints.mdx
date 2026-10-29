@@ -1,0 +1,108 @@
+---
+title: Endpoints
+description: What to check, how often, and what counts as up.
+---
+
+```yaml
+endpoints:
+  - key: api
+    name: API
+    group: api
+    url: https://api.example.com/health
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == UP"
+      - "[RESPONSE_TIME] < 500"
+```
+
+| Key | Default | |
+|---|---|---|
+| `key` | required | Stable id (`[a-z0-9_-]`). Renaming it starts a new history. |
+| `name` | key | |
+| `group` | `""` | |
+| `type` | from URL | `http`, `tcp` (`tcp://host:port`), `dns` (`dns://server`), `icmp` (`icmp://host`). |
+| `url` | required | |
+| `interval` | `60s` | |
+| `timeout` | `10s` | |
+| `method`, `headers`, `body` | `GET` | HTTP only. A `Host` header overrides the request host. |
+| `insecure` | `false` | Skip TLS verification. |
+| `dns` | | `{name, type}` for DNS checks; type defaults to `A`. |
+| `conditions` | required | All must pass. |
+| `failureThreshold` | `1` | Consecutive failures before the status turns down. |
+| `successThreshold` | `1` | Consecutive successes before it turns up. |
+| `alerts` | | See [Alerts](#alerts). |
+
+## Check types
+
+<Tabs items={['HTTP', 'TCP', 'DNS', 'ICMP']}>
+  <Tab value="HTTP">
+    ```yaml
+    - key: website
+      url: https://acme.com
+      conditions: ["[STATUS] == 200", "[CERTIFICATE_EXPIRATION] > 7d"]
+    ```
+  </Tab>
+  <Tab value="TCP">
+    ```yaml
+    - key: postgres
+      url: tcp://db.internal:5432
+      conditions: ["[CONNECTED] == true"]
+    ```
+  </Tab>
+  <Tab value="DNS">
+    ```yaml
+    - key: dns
+      url: dns://1.1.1.1
+      dns: { name: acme.com, type: A }
+      conditions: ["[DNS_RCODE] == NOERROR"]
+    ```
+  </Tab>
+  <Tab value="ICMP">
+    ```yaml
+    - key: router
+      url: icmp://10.0.0.1
+      conditions: ["[CONNECTED] == true", "[RESPONSE_TIME] < 50"]
+    ```
+
+    ICMP uses unprivileged ping. In Kubernetes, set `worker.privilegedIcmp`
+    if your nodes don't allow it.
+  </Tab>
+</Tabs>
+
+## Conditions
+
+`<left> <op> <right>` with spaces around the operator (`==`, `!=`, `<`, `<=`,
+`>`, `>=`).
+
+| Placeholder | |
+|---|---|
+| `[STATUS]` | HTTP status code. |
+| `[RESPONSE_TIME]` | Milliseconds. Compare with a number or a duration (`500`, `1s`). |
+| `[BODY]` | Response body (DNS: first answer). |
+| `[BODY].a.b[0].c` | JSON path into the body. |
+| `[CONNECTED]` | `true` if a connection was made. |
+| `[IP]` | Resolved IP. |
+| `[CERTIFICATE_EXPIRATION]` | Time until the TLS certificate expires, e.g. `> 7d`. |
+| `[DNS_RCODE]` | `NOERROR`, `NXDOMAIN`, … |
+
+Functions: `len([BODY].items) > 0`, `[BODY] == pat(*ok*)`,
+`[STATUS] == any(200, 204)`.
+
+## Alerts
+
+```yaml
+alerts:
+  - type: slack
+    failureThreshold: 3   # consecutive failures before it triggers
+    successThreshold: 2   # consecutive successes before it resolves
+    sendOnResolved: true
+    description: Paging the API team
+```
+
+Alerts fire exactly once per trigger or resolve across all replicas.
+
+<Callout type="warn">
+  Notification providers aren't implemented yet: every alert currently logs
+  `notification provider not implemented` with its type and endpoint.
+</Callout>

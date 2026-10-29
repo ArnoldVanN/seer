@@ -1,0 +1,71 @@
+---
+title: Development
+description: Run Seer from source and work on it.
+---
+
+Needs Go 1.27+, Node 24+, pnpm, Docker, and `protoc-gen-go` /
+`protoc-gen-connect-go` on your PATH.
+
+```sh
+pnpm install
+pnpm gen                                     # protobuf (Go + TS) and ent code, after any schema change
+cp apps/web/.env.example apps/web/.env.local # once
+pnpm dev
+```
+
+`pnpm dev` starts Postgres (docker, :5433), applies migrations, seeds a year
+of fake history for the `demo-api` endpoint, then runs the Go server
+(`seer all` with `seer.example.yaml`), the Next.js dev server, the protos
+watcher and this docs site together. Regenerate the demo history with
+`cd apps/server && go run ./cmd/seed -force`; skip seeding with
+`scripts/dev-db-up.sh --no-seed`. Dev ports avoid the usual 3000/8080/9090:
+
+| | |
+|---|---|
+| Status page | http://localhost:3100 |
+| Private dashboards | http://localhost:3100/internal (admin / admin) |
+| Docs | http://localhost:3200 |
+| Public / private API | :18080 / :18081 |
+| Health, metrics | http://localhost:19090/metrics |
+
+Edit `seer.example.yaml` and restart `pnpm dev` to change endpoints. Go
+changes need a restart too; web changes hot-reload.
+
+| Task | Command |
+|---|---|
+| Unit tests | `cd apps/server && go test ./...` |
+| All tests incl. Postgres (HA, visibility) | `scripts/test-integration.sh` |
+| New migration after editing `ent/schema` | `pnpm gen && scripts/migrate-diff.sh <name>` |
+| Docs only | `pnpm --filter docs dev` |
+
+## Layout
+
+```
+apps/server        Go: checks, scheduler, API (ConnectRPC), ent schema, migrations
+apps/web           Next.js status pages
+apps/docs          This site (Fumadocs, static export)
+packages/protos    Protobuf API definitions, generated for Go and TypeScript
+deploy/helm/seer   Helm chart
+deploy/compose     docker compose HA demo
+```
+
+## Commits and releases
+
+Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org/):
+`feat:` bumps the minor version, `fix:` and the rest bump the patch, and
+`feat!:` or a `BREAKING CHANGE:` footer bumps the major. Squash-merge feature
+branches so the PR title becomes the commit.
+
+Releases are cut by [monotrack](https://github.com/ArnoldVanN/monotrack).
+Every merge to `main` updates a release PR with the next version and
+`CHANGELOG.md`; merging that PR tags `vX.Y.Z` and publishes the images. To
+reword a changelog entry, edit the source commit's body (the PR description
+when squash-merging):
+
+```
+chore: original subject
+
+BEGIN_COMMIT_OVERRIDE
+feat(api): what this actually does for users
+END_COMMIT_OVERRIDE
+```

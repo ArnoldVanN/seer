@@ -1,0 +1,70 @@
+---
+title: Authentication
+description: Sign-in for private dashboards, with OIDC or a static admin account.
+---
+
+Private dashboards need a sign-in. The web app handles it and keeps no user
+data: the session is an encrypted cookie, and users and groups come from your
+identity provider (or one static admin account). Configure either or both.
+
+## OIDC
+
+| Variable | |
+|---|---|
+| `SEER_OIDC_ISSUER` | Issuer URL. Setting it enables OIDC. |
+| `SEER_OIDC_CLIENT_ID` / `SEER_OIDC_CLIENT_SECRET` | Client credentials. Redirect URI: `https://<your host>/auth/callback`. |
+| `SEER_OIDC_SCOPES` | Default `openid profile email`. Add `groups` if your provider needs it. |
+| `SEER_OIDC_GROUPS_CLAIM` | Claim holding the user's groups. Default `groups`. |
+| `SEER_OIDC_ALLOWED_GROUPS` | Comma-separated. Only these groups may sign in. |
+| `SEER_OIDC_ALLOWED_DOMAINS` | Comma-separated. Users with a *verified* email on these domains may sign in. |
+| `SEER_OIDC_NAME` | Login button label. Default `SSO`. |
+
+In Helm these are `auth.oidc.*`.
+
+## Who can get in
+
+Access is checked twice:
+
+1. **Sign-in.** A user is let in if they're in any `SEER_OIDC_ALLOWED_GROUPS`
+   group *or* have a verified email on a `SEER_OIDC_ALLOWED_DOMAINS` domain.
+   Everyone else sees "doesn't have access" and gets no session.
+2. **Each dashboard.** A private dashboard's `allowedGroups` decides who sees
+   it. This is enforced by the Go API, not the web app. Empty `allowedGroups`
+   means any signed-in user.
+
+If both allowlists are unset, anyone your provider authenticates can sign in,
+and then see every private dashboard without `allowedGroups`. That's fine when
+the provider only admits assigned users (app assignments in Authentik,
+Keycloak, Entra, Okta), but **not** with a public provider like Google, where
+any account can authenticate. There, set `SEER_OIDC_ALLOWED_DOMAINS`.
+
+Sign-in checks happen only at login: removing someone from a group takes
+effect when their session expires.
+
+## Admin account
+
+A single local account for setups without an identity provider:
+
+| Variable | |
+|---|---|
+| `SEER_ADMIN_USERNAME` | Username. |
+| `SEER_ADMIN_PASSWORD` | The password. |
+| `SEER_ADMIN_PASSWORD_HASH` | Or a bcrypt hash instead, so the password itself is stored nowhere: `node -e "console.log(require('bcryptjs').hashSync('pw', 10))"`. In `.env` files escape each `$` as `\$`. |
+| `SEER_ADMIN_GROUPS` | Comma-separated groups. Default `admin`. |
+
+Set the password or the hash, not both: Seer won't start with both.
+
+In Helm these are `auth.admin.username`, `password` (or `passwordHash`) and
+`groups`. A `password` set in values ends up in the chart's secret, but also
+in Helm's release history. To keep it out of your values entirely, put it in
+a secret and set `auth.admin.existingSecret`:
+
+```sh
+kubectl create secret generic seer-admin \
+  --from-literal=username=admin \
+  --from-literal=password='correct horse battery staple'
+```
+
+The secret can hold `password-hash` instead of `password`. A `username` set in
+values takes precedence over the secret's, so the secret can hold just the
+password.

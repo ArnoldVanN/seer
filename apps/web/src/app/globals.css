@@ -1,0 +1,173 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Theming contract: the --seer-* variables below, plus the seer-* class names
+ * and data-* attributes on elements, are stable. Override them from
+ * ui.customCss / ui.customCssFile, which loads after this file. shadcn's own
+ * tokens are derived from them, so overriding --seer-* restyles everything.
+ * See apps/docs/content/docs/theming.mdx.
+ */
+
+/* Follows the OS setting; users can force a scheme by overriding --seer-*. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+:root {
+  --seer-font: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --seer-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --seer-radius: 0.625rem;
+  --seer-max-width: 960px;
+
+  --seer-bg: oklch(0.985 0 0);
+  --seer-surface: oklch(1 0 0);
+  --seer-subtle: oklch(0.97 0 0);
+  --seer-border: oklch(0.922 0 0);
+  --seer-text: oklch(0.145 0 0);
+  --seer-muted: oklch(0.556 0 0);
+  --seer-accent: oklch(0.546 0.245 262.881);
+  --seer-accent-foreground: oklch(0.985 0 0);
+
+  --seer-up: oklch(0.627 0.194 149.214);
+  --seer-partial: oklch(0.769 0.188 70.08);
+  --seer-down: oklch(0.577 0.245 27.325);
+  --seer-unknown: oklch(0.708 0 0);
+  --seer-nodata: oklch(0.922 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --seer-bg: oklch(0.145 0 0);
+    --seer-surface: oklch(0.205 0 0);
+    --seer-subtle: oklch(0.269 0 0);
+    --seer-border: oklch(1 0 0 / 10%);
+    --seer-text: oklch(0.985 0 0);
+    --seer-muted: oklch(0.708 0 0);
+    --seer-accent: oklch(0.707 0.165 254.624);
+    --seer-accent-foreground: oklch(0.145 0 0);
+    --seer-unknown: oklch(0.439 0 0);
+    --seer-nodata: oklch(0.269 0 0);
+  }
+}
+
+/* shadcn tokens, derived from the contract above. */
+:root {
+  --background: var(--seer-bg);
+  --foreground: var(--seer-text);
+  --card: var(--seer-surface);
+  --card-foreground: var(--seer-text);
+  --popover: var(--seer-surface);
+  --popover-foreground: var(--seer-text);
+  --primary: var(--seer-accent);
+  --primary-foreground: var(--seer-accent-foreground);
+  --secondary: var(--seer-subtle);
+  --secondary-foreground: var(--seer-text);
+  --muted: var(--seer-subtle);
+  --muted-foreground: var(--seer-muted);
+  --accent: var(--seer-subtle);
+  --accent-foreground: var(--seer-text);
+  --destructive: var(--seer-down);
+  --border: var(--seer-border);
+  --input: var(--seer-border);
+  --ring: var(--seer-accent);
+  --chart-1: var(--seer-accent);
+  --chart-2: var(--seer-up);
+  --chart-3: var(--seer-down);
+  --chart-4: var(--seer-partial);
+  --chart-5: var(--seer-muted);
+  --radius: var(--seer-radius);
+}
+
+@theme inline {
+  --font-sans: var(--seer-font);
+  --font-heading: var(--seer-font);
+  --font-mono: var(--seer-font-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  /* Status colors as utilities: bg-up, text-down, ... */
+  --color-up: var(--seer-up);
+  --color-partial: var(--seer-partial);
+  --color-down: var(--seer-down);
+  --color-unknown: var(--seer-unknown);
+  --color-nodata: var(--seer-nodata);
+  --container-page: var(--seer-max-width);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Status-driven colors live here rather than in components so custom CSS can
+   target the same data attributes. */
+@layer components {
+  .seer-status-dot {
+    @apply size-2.5 shrink-0 rounded-full bg-unknown;
+  }
+  .seer-status-dot[data-status="up"] {
+    @apply bg-up;
+  }
+  .seer-status-dot[data-status="down"] {
+    @apply bg-down ring-4 ring-down/25;
+  }
+
+  .seer-history-bar {
+    @apply bg-nodata;
+  }
+  .seer-history-bar[data-level="ok"] {
+    @apply bg-up;
+  }
+  .seer-history-bar[data-level="partial"] {
+    @apply bg-partial;
+  }
+  .seer-history-bar[data-level="down"] {
+    @apply bg-down;
+  }
+
+  .seer-overall {
+    @apply bg-up text-white;
+  }
+  .seer-overall[data-state="degraded"] {
+    @apply bg-partial;
+  }
+  .seer-overall[data-state="outage"] {
+    @apply bg-down;
+  }
+}

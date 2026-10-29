@@ -1,0 +1,127 @@
+{{- $fullname := include "seer.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "seer.labels" . | nindent 4 }}
+    {{- include "seer.selector" (dict "root" . "component" "web") | nindent 4 }}
+spec:
+  {{- if not .Values.web.hpa.enabled }}
+  replicas: {{ .Values.web.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "seer.selector" (dict "root" . "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "seer.selector" (dict "root" . "component" "web") | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "seer.webImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - { name: SEER_PUBLIC_API_URL, value: "http://{{ $fullname }}-public:8080" }
+            - { name: SEER_PRIVATE_API_URL, value: "http://{{ $fullname }}-private:8081" }
+            - name: SEER_INTERNAL_JWT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "seer.secretName" . }}, key: internal-jwt-secret } }
+            - name: SEER_SESSION_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "seer.secretName" . }}, key: session-secret } }
+            - { name: SEER_PRIVATE_PATH_PREFIX, value: {{ .Values.privateDashboards.pathPrefix | quote }} }
+            {{- with .Values.auth.oidc }}
+            {{- if .issuer }}
+            - { name: SEER_OIDC_ISSUER, value: {{ .issuer | quote }} }
+            - { name: SEER_OIDC_CLIENT_ID, value: {{ .clientId | quote }} }
+            - { name: SEER_OIDC_SCOPES, value: {{ .scopes | quote }} }
+            - { name: SEER_OIDC_GROUPS_CLAIM, value: {{ .groupsClaim | quote }} }
+            - { name: SEER_OIDC_NAME, value: {{ .name | quote }} }
+            - { name: SEER_OIDC_ALLOWED_GROUPS, value: {{ join "," .allowedGroups | quote }} }
+            - { name: SEER_OIDC_ALLOWED_DOMAINS, value: {{ join "," .allowedDomains | quote }} }
+            {{- if .existingSecret }}
+            - name: SEER_OIDC_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .existingSecret }}, key: client-secret } }
+            {{- else if .clientSecret }}
+            - name: SEER_OIDC_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "seer.secretName" $ }}, key: oidc-client-secret } }
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.auth.admin }}
+            {{- if and .password .passwordHash }}
+            {{- fail "auth.admin: set password or passwordHash, not both" }}
+            {{- end }}
+            {{- if .existingSecret }}
+            {{- if .username }}
+            - { name: SEER_ADMIN_USERNAME, value: {{ .username | quote }} }
+            {{- else }}
+            - name: SEER_ADMIN_USERNAME
+              valueFrom: { secretKeyRef: { name: {{ .existingSecret }}, key: username } }
+            {{- end }}
+            # The secret holds one of these; the app rejects both.
+            - name: SEER_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .existingSecret }}, key: password, optional: true } }
+            - name: SEER_ADMIN_PASSWORD_HASH
+              valueFrom: { secretKeyRef: { name: {{ .existingSecret }}, key: password-hash, optional: true } }
+            - { name: SEER_ADMIN_GROUPS, value: {{ join "," .groups | quote }} }
+            {{- else if and .username (or .password .passwordHash) }}
+            - { name: SEER_ADMIN_USERNAME, value: {{ .username | quote }} }
+            {{- if .password }}
+            - name: SEER_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "seer.secretName" $ }}, key: admin-password } }
+            {{- else }}
+            - { name: SEER_ADMIN_PASSWORD_HASH, value: {{ .passwordHash | quote }} }
+            {{- end }}
+            - { name: SEER_ADMIN_GROUPS, value: {{ join "," .groups | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- with .Values.web.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            # Next.js writes its cache here; the rest of the filesystem is read-only.
+            - { name: next-cache, mountPath: /app/apps/web/.next/cache }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: next-cache, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+      {{- with .Values.web.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "seer.selector" (dict "root" . "component" "web") | nindent 14 }}
+      {{- end }}

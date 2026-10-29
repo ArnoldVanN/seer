@@ -1,0 +1,95 @@
+# Example config. Every option is documented at https://seer.arnovannieuwenhuyzen.com/docs/configuration
+
+storage:
+  type: postgres
+  # Or leave unset and use the SEER_DB_DSN environment variable.
+  dsn: ${SEER_DB_DSN}
+  retention:
+    raw: 14d
+    rollup5m: 90d
+    rollup1h: 2y
+    # rollup1d: 0 keeps daily history forever
+
+server:
+  publicPort: 8080
+  privatePort: 8081
+  opsPort: 9090
+  # Shared with the web app; signs tokens for the private API.
+  internalJwtSecret: ${SEER_INTERNAL_JWT_SECRET}
+
+ui:
+  title: Acme Status
+  description: Live status of Acme services
+  # logo: https://example.com/logo.svg
+  # logoDark: https://example.com/logo-white.svg
+  # favicon: https://example.com/favicon.svg
+  # homeUrl: https://acme.com
+  customCss: |
+    :root { --seer-accent: #7c3aed; --seer-accent-foreground: #fff; }
+
+# Several status pages from one deployment, each on its own hostname:
+# https://seer.arnovannieuwenhuyzen.com/docs/configuration/sites
+
+dashboards:
+  - key: status
+    title: Public status
+    visibility: public
+    groups: [website, api, demo]
+  - key: ops
+    title: Operations
+    visibility: private
+    # Empty allowedGroups means any signed-in user.
+    allowedGroups: [sre, admin]
+    groups: [website, api, demo, infra]
+
+endpoints:
+  - key: example-site
+    name: example.com
+    group: website
+    url: https://example.com
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 2000"
+      - "[CERTIFICATE_EXPIRATION] > 168h"
+
+  - key: httpbin-json
+    name: httpbin JSON
+    group: api
+    url: https://httpbin.org/json
+    interval: 1m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].slideshow.author == Yours Truly"
+    alerts:
+      - type: slack
+        failureThreshold: 3
+        successThreshold: 2
+
+  - key: cloudflare-dns
+    name: Cloudflare DNS
+    group: infra
+    url: dns://1.1.1.1
+    dns: { name: example.com, type: A }
+    interval: 1m
+    conditions:
+      - "[DNS_RCODE] == NOERROR"
+
+  - key: postgres
+    name: Postgres
+    group: infra
+    url: tcp://localhost:5433
+    interval: 15s
+    conditions:
+      - "[CONNECTED] == true"
+
+  # Dev only: checks this Seer's own ops port (19090 under `pnpm dev`).
+  # scripts/dev-db-up.sh seeds a year of fake history for it.
+  - key: demo-api
+    name: Demo API
+    group: demo
+    url: http://localhost:19090/healthz
+    interval: 1m
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 500"

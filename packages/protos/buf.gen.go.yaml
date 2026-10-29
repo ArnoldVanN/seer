@@ -1,0 +1,14 @@
+# Go only: used by the server Docker build. scripts/gen.sh runs both templates.
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: gen/go
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen/go
+    opt: paths=source_relative
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/seer-status/seer/packages/protos/gen/go

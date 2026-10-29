@@ -1,0 +1,20 @@
+projects:
+  seer:
+    type: go
+    path: .
+    preMajor: true
+    build:
+      entrypoint: true
+    ignore:
+      - "apps/docs/**"
+      - ".github/**"
+      - "scripts/**"
+      - "**/*.md"
+      - "docker-compose.dev.yml"
+      - "seer.example.yaml"
+      - "deploy/compose/**"
+discovery:
+  exclude:
+    - apps/**
+    - packages/**
+    - deploy/**

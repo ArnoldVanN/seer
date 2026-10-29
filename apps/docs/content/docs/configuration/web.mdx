@@ -1,0 +1,31 @@
+---
+title: Web app
+description: Environment variables for the Next.js status pages.
+---
+
+The web app is configured with environment variables. The Helm chart sets
+them from values; for `pnpm dev`, copy `apps/web/.env.example` to
+`apps/web/.env.local`.
+
+## API and secrets
+
+| Variable | |
+|---|---|
+| `SEER_PUBLIC_API_URL` | URL of the server's public API (port 8080). |
+| `SEER_PRIVATE_API_URL` | URL of the server's private API (port 8081). |
+| `SEER_INTERNAL_JWT_SECRET` | Must match `server.internalJwtSecret`. Signs the short-lived tokens for the private API. |
+| `SEER_SESSION_SECRET` | Encrypts the session cookie. |
+
+## Private dashboards
+
+| Variable | |
+|---|---|
+| `SEER_PRIVATE_PATH_PREFIX` | Where private dashboards live on every site. Default `/internal`. |
+
+In Helm this is `privateDashboards.pathPrefix`. For private dashboards on
+their own hostname, see [Sites](/docs/configuration/sites).
+
+## Sign-in
+
+`SEER_OIDC_*` and `SEER_ADMIN_*` configure who can see private dashboards.
+They're described in [Authentication](/docs/authentication).

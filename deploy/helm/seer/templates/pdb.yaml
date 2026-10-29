@@ -1,0 +1,19 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- $components := ternary (list "api" "worker" "web") (list "combined" "web") (eq .Values.mode "split") }}
+{{- range $i, $c := $components }}
+{{- if $i }}
+---
+{{- end }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "seer.fullname" $ }}-{{ $c }}
+  labels:
+    {{- include "seer.labels" $ | nindent 4 }}
+spec:
+  maxUnavailable: {{ $.Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "seer.selector" (dict "root" $ "component" $c) | nindent 6 }}
+{{- end }}
+{{- end }}

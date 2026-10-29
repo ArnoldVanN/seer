@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "apps/docs/**"
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  monotrack:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.result.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run Monotrack CLI
+        id: monotrack
+        uses: arnoldvann/monotrack@v0
+        with:
+          command: tag bump
+          args: -o json
+
+      - name: Read result
+        id: result
+        env:
+          OUTPUT: ${{ steps.monotrack.outputs.output }}
+        run: |
+          version=$(jq -r '[.[] | select(.status == "released")][0].version // empty' <<< "${OUTPUT:-[]}")
+          pr=$(jq -r '[.[] | select(.status == "proposed")][0].prUrl // empty' <<< "${OUTPUT:-[]}")
+          [ -n "$version" ] && echo "::notice::Released $version"
+          [ -n "$pr" ] && echo "::notice::Release PR: $pr"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  images:
+    needs: monotrack
+    if: needs.monotrack.outputs.version != ''
+    uses: ./.github/workflows/images.yml
+    with:
+      version: ${{ needs.monotrack.outputs.version }}
+    secrets: inherit
+
+  chart:
+    needs: monotrack
+    if: needs.monotrack.outputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.monotrack.outputs.version }}
+      - uses: azure/setup-helm@v4
+      - name: Package and push
+        env:
+          VERSION: ${{ needs.monotrack.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm package deploy/helm/seer --version "${VERSION#v}" --app-version "${VERSION#v}" -d dist
+          helm push dist/seer-"${VERSION#v}".tgz "oci://ghcr.io/${OWNER,,}/charts"
+
+  github-release:
+    needs: [monotrack, images, chart]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.monotrack.outputs.version }}
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.monotrack.outputs.version }}
+        run: |
+          awk -v v="$VERSION]" '
+            /^## \[/ { if (found) exit; if (index($0, v)) { found = 1; next } }
+            found
+          ' CHANGELOG.md > notes.md
+          gh release create "$VERSION" --title "$VERSION" --notes-file notes.md --verify-tag
