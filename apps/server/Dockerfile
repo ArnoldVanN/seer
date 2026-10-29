@@ -1,5 +1,5 @@
 # Build from the repo root: docker build -f apps/server/Dockerfile .
-FROM golang:1.27-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS build
 WORKDIR /src
 
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.51.0 \
@@ -14,7 +14,8 @@ RUN cd apps/server && go mod download
 
 COPY apps/server/ apps/server/
 ARG VERSION=dev
-RUN cd apps/server && CGO_ENABLED=0 go build -trimpath \
+ARG TARGETOS TARGETARCH
+RUN cd apps/server && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags "-s -w -X main.version=${VERSION}" -o /out/seer ./cmd/seer
 
 FROM gcr.io/distroless/static-debian12:nonroot
