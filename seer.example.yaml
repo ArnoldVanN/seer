@@ -30,6 +30,10 @@ ui:
   customCss: |
     :root { --seer-accent: #7c3aed; --seer-accent-foreground: #fff; }
 
+# alerting:
+#   slack:
+#     webhookUrl: ${SLACK_WEBHOOK_URL}
+
 # Several status pages from one deployment, each on its own hostname:
 # https://seer.arnovannieuwenhuyzen.com/docs/configuration/sites
 
@@ -69,10 +73,10 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].slideshow.author == Yours Truly"
-    alerts:
-      - type: slack
-        failureThreshold: 3
-        successThreshold: 2
+    # alerts:
+    #   - type: slack
+    #     failureThreshold: 3
+    #     successThreshold: 2
 
   - key: cloudflare-dns
     name: Cloudflare DNS

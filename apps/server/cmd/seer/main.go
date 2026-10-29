@@ -147,8 +147,10 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 	serve(ctx, g, "ops", cfg.Server.OpsPort, ops)
 
 	if worker {
-		w := scheduler.NewWorker(d, &scheduler.Recorder{DB: d, Notify: notify.NewDispatcher()})
+		disp := notify.New(d, cfg.Alerting)
+		w := scheduler.NewWorker(d, &scheduler.Recorder{DB: d, Notify: disp})
 		g.Go(func() error { return w.Run(ctx) })
+		g.Go(func() error { disp.Run(ctx); return nil })
 		g.Go(func() error {
 			jobs.RunPeriodic(ctx, d, cfg.Storage.Retention, scheduler.LiveTimeout)
 			return nil

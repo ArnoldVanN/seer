@@ -10,3 +10,6 @@ apps/docs/.source
 .git
 *.log
 .env*
+apps/server/ent/**
+!apps/server/ent/generate.go
+!apps/server/ent/schema

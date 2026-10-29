@@ -87,6 +87,38 @@ dashboards:
 	}
 }
 
+func TestAlerting(t *testing.T) {
+	c, err := Parse([]byte(`
+alerting:
+  webhook: { url: https://hooks.test }
+  email: { host: smtp.test, from: "Seer <seer@acme.test>", to: [ops@acme.test] }
+endpoints:
+  - { key: a, url: "https://a", conditions: ["[STATUS] == 200"], alerts: [{ type: webhook }, { type: email }] }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Alerting.Webhook.Method != "POST" || c.Alerting.Email.Port != 587 {
+		t.Errorf("defaults not applied: %+v %+v", c.Alerting.Webhook, c.Alerting.Email)
+	}
+
+	_, err = Parse([]byte(`
+alerting:
+  slack: {}
+  email: { host: smtp.test, from: "not an address", to: [ops@acme.test] }
+endpoints:
+  - { key: a, url: "https://a", conditions: ["[STATUS] == 200"], alerts: [{ type: pagerduty }, { type: discord }] }
+`))
+	if err == nil {
+		t.Fatal("expected validation errors")
+	}
+	for _, want := range []string{"alert type must be one of", `alert type "discord" has no provider`, "alerting.slack: webhookUrl is required", `alerting.email: "not an address"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q missing %q", err, want)
+		}
+	}
+}
+
 func TestSites(t *testing.T) {
 	const eps = `
 endpoints:

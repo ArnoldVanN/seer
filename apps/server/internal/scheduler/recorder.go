@@ -66,7 +66,8 @@ func (r *Recorder) Record(ctx context.Context, endpointID int, spec *config.Endp
 
 // applyState is an optimistic read-modify-write on the state row's version.
 // Results for different slots can land concurrently during a handoff, so it
-// retries on conflict; whichever write wins sends that transition's events.
+// retries on conflict. Whichever write wins queues that transition's events,
+// in the same transaction.
 func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.Endpoint, out checker.Outcome) (string, error) {
 	for attempt := 0; attempt < 5; attempt++ {
 		st, err := r.loadState(ctx, endpointID)
@@ -81,35 +82,59 @@ func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.
 		}
 		n, evs := next(prev, out.Success, out.Error, spec, out.CheckedAt)
 
-		upd := r.DB.Ent.EndpointState.Update().
-			Where(endpointstate.ID(st.ID), endpointstate.Version(st.Version)).
-			SetVersion(st.Version + 1).
-			SetStatus(endpointstate.Status(n.Status)).
-			SetConsecutiveFailures(n.Failures).
-			SetConsecutiveSuccesses(n.Successes).
-			SetTriggeredAlerts(n.Triggered).
-			SetLastCheckedAt(out.CheckedAt).
-			SetLastResponseTimeMs(out.ResponseTime.Milliseconds()).
-			SetLastError(truncate(out.Error, 1000))
-		if n.Status != prev.Status {
-			upd.SetChangedAt(out.CheckedAt)
-		}
-		affected, err := upd.Save(ctx)
+		won, err := r.saveState(ctx, st, n, prev.Status, out, endpointID, evs)
 		if err != nil {
-			return "", fmt.Errorf("update state: %w", err)
+			return "", err
 		}
-		if affected == 1 {
+		if won {
 			if n.Status != prev.Status {
 				log.Info().Str("endpoint", spec.Key).Str("from", prev.Status).Str("to", n.Status).Msg("status changed")
 			}
-			for _, ev := range evs {
-				r.Notify.Dispatch(ctx, ev)
+			if len(evs) > 0 {
+				r.Notify.Wake()
 			}
 			return n.Status, nil
 		}
 		time.Sleep(time.Duration(attempt*20) * time.Millisecond)
 	}
 	return "", errors.New("update state: too many concurrent writers")
+}
+
+// saveState writes n if st is still the current version, along with evs. It
+// reports false if another writer got there first.
+func (r *Recorder) saveState(ctx context.Context, st *ent.EndpointState, n state, prevStatus string, out checker.Outcome, endpointID int, evs []notify.Event) (bool, error) {
+	tx, err := r.DB.Ent.Tx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	upd := tx.EndpointState.Update().
+		Where(endpointstate.ID(st.ID), endpointstate.Version(st.Version)).
+		SetVersion(st.Version + 1).
+		SetStatus(endpointstate.Status(n.Status)).
+		SetConsecutiveFailures(n.Failures).
+		SetConsecutiveSuccesses(n.Successes).
+		SetTriggeredAlerts(n.Triggered).
+		SetLastCheckedAt(out.CheckedAt).
+		SetLastResponseTimeMs(out.ResponseTime.Milliseconds()).
+		SetLastError(truncate(out.Error, 1000))
+	if n.Status != prevStatus {
+		upd.SetChangedAt(out.CheckedAt)
+	}
+	affected, err := upd.Save(ctx)
+	if err != nil {
+		return false, fmt.Errorf("update state: %w", err)
+	}
+	if affected != 1 {
+		return false, nil
+	}
+	if err := notify.Enqueue(ctx, tx, endpointID, evs); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("update state: %w", err)
+	}
+	return true, nil
 }
 
 func (r *Recorder) loadState(ctx context.Context, endpointID int) (*ent.EndpointState, error) {

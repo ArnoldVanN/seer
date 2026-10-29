@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"regexp"
 	"slices"
@@ -22,6 +23,7 @@ type Config struct {
 	Storage    Storage     `yaml:"storage"`
 	Server     Server      `yaml:"server"`
 	UI         UI          `yaml:"ui"`
+	Alerting   Alerting    `yaml:"alerting"`
 	Sites      []Site      `yaml:"sites"`
 	Dashboards []Dashboard `yaml:"dashboards"`
 	Endpoints  []Endpoint  `yaml:"endpoints"`
@@ -77,6 +79,56 @@ type UI struct {
 	FooterLinks []Link `yaml:"footerLinks"`
 	// Pointer so a site can turn the credit back on.
 	HidePoweredBy *bool `yaml:"hidePoweredBy"`
+}
+
+// Alerting configures where alerts are sent. An endpoint alert's type names
+// one of these providers.
+type Alerting struct {
+	Webhook *Webhook `yaml:"webhook"`
+	Slack   *Chat    `yaml:"slack"`
+	Discord *Chat    `yaml:"discord"`
+	Email   *Email   `yaml:"email"`
+}
+
+// Webhook POSTs each event as JSON.
+type Webhook struct {
+	URL     string            `yaml:"url"`
+	Method  string            `yaml:"method"`
+	Headers map[string]string `yaml:"headers"`
+}
+
+// Chat is a Slack or Discord incoming webhook.
+type Chat struct {
+	WebhookURL string `yaml:"webhookUrl"`
+}
+
+type Email struct {
+	Host string `yaml:"host"`
+	// 465 uses implicit TLS; any other port upgrades with STARTTLS when the
+	// server offers it.
+	Port     int      `yaml:"port"`
+	Username string   `yaml:"username"`
+	Password string   `yaml:"password"`
+	From     string   `yaml:"from"`
+	To       []string `yaml:"to"`
+}
+
+// AlertTypes are the provider names an alert's type can take.
+var AlertTypes = []string{"webhook", "slack", "discord", "email"}
+
+// Configured reports whether the provider for an alert type is set up.
+func (a Alerting) Configured(alertType string) bool {
+	switch alertType {
+	case "webhook":
+		return a.Webhook != nil
+	case "slack":
+		return a.Slack != nil
+	case "discord":
+		return a.Discord != nil
+	case "email":
+		return a.Email != nil
+	}
+	return false
 }
 
 type Link struct {
@@ -257,6 +309,12 @@ func (c *Config) applyDefaults() {
 	if c.Storage.Type == "" {
 		c.Storage.Type = "postgres"
 	}
+	if w := c.Alerting.Webhook; w != nil && w.Method == "" {
+		w.Method = "POST"
+	}
+	if m := c.Alerting.Email; m != nil && m.Port == 0 {
+		m.Port = 587
+	}
 	if c.Storage.DSN == "" {
 		c.Storage.DSN = os.Getenv("SEER_DB_DSN")
 	}
@@ -409,13 +467,19 @@ func (c *Config) validate() error {
 			errs = append(errs, fmt.Errorf("%s: at least one condition is required", where))
 		}
 		for _, a := range e.Alerts {
-			if a.Type == "" {
+			switch {
+			case a.Type == "":
 				errs = append(errs, fmt.Errorf("%s: alert type is required", where))
+			case !slices.Contains(AlertTypes, a.Type):
+				errs = append(errs, fmt.Errorf("%s: alert type must be one of %s", where, strings.Join(AlertTypes, ", ")))
+			case !c.Alerting.Configured(a.Type):
+				errs = append(errs, fmt.Errorf("%s: alert type %q has no provider under alerting.%s", where, a.Type, a.Type))
 			}
 		}
 		errs = append(errs, validateLinks(where+": links", e.Links)...)
 	}
 	errs = append(errs, validateLinks("ui.footerLinks", c.UI.FooterLinks)...)
+	errs = append(errs, c.Alerting.validate()...)
 
 	// Groups that exist per scope: site key, or "" for the top level.
 	groupsIn := map[string]map[string]bool{}
@@ -454,6 +518,30 @@ func (c *Config) validate() error {
 	}
 	errs = append(errs, c.validateSites(dkeys)...)
 	return errors.Join(errs...)
+}
+
+func (a Alerting) validate() []error {
+	var errs []error
+	if w := a.Webhook; w != nil && w.URL == "" {
+		errs = append(errs, errors.New("alerting.webhook: url is required"))
+	}
+	if a.Slack != nil && a.Slack.WebhookURL == "" {
+		errs = append(errs, errors.New("alerting.slack: webhookUrl is required"))
+	}
+	if a.Discord != nil && a.Discord.WebhookURL == "" {
+		errs = append(errs, errors.New("alerting.discord: webhookUrl is required"))
+	}
+	if m := a.Email; m != nil {
+		if m.Host == "" || m.From == "" || len(m.To) == 0 {
+			errs = append(errs, errors.New("alerting.email: host, from and to are required"))
+		}
+		for _, addr := range append([]string{m.From}, m.To...) {
+			if _, err := mail.ParseAddress(addr); addr != "" && err != nil {
+				errs = append(errs, fmt.Errorf("alerting.email: %q: %w", addr, err))
+			}
+		}
+	}
+	return errs
 }
 
 func validateLinks(where string, links []Link) []error {

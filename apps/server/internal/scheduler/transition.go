@@ -43,6 +43,7 @@ func next(s state, success bool, errMsg string, spec *config.Endpoint, at time.T
 			AlertType:    a.Type,
 			EndpointKey:  spec.Key,
 			EndpointName: spec.Name,
+			Group:        spec.Group,
 			Description:  a.Description,
 			At:           at,
 		}

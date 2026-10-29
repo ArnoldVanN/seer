@@ -12,6 +12,8 @@ stateless, so you can run as many as you want:
 - **Checks are sharded across workers.** Kill one and its endpoints move to
   the others within ~15s. A check never runs twice for the same interval, and
   an alert never fires twice.
+- **Alerts** to webhooks, Slack, Discord and email, queued in Postgres so a
+  worker dying mid-send doesn't lose one.
 - **Public and private dashboards** from one deployment, on a path
   (`/internal`) or a separate hostname, behind OIDC or an admin login.
 - **Live updates** streamed to the browser, from any replica.

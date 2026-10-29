@@ -37,8 +37,12 @@ database access.
    workers briefly both own an endpoint during a handoff, only one result is
    stored, and only that result moves the state.
 4. The status and alert state is updated with an optimistic version check. Only
-   the write that wins sends notifications, so each alert goes out once.
-5. A worker that shuts down cleanly deregisters, so the others take over at
+   the write that wins queues notifications, in the same transaction, so each
+   alert is queued once.
+5. Every worker sends from that queue, locking an event while it sends it. If
+   the worker dies mid-send, the lock goes with its connection and another
+   worker sends the event instead.
+6. A worker that shuts down cleanly deregisters, so the others take over at
    their next tick. One that crashes is replaced within ~15–20s.
 
 Rollups, retention, and config sync run under Postgres advisory locks: any

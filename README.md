@@ -20,6 +20,8 @@ stateless, so you can run as many as you want:
 - **Checks are sharded across workers.** Kill one and its endpoints move to
   the others within ~15s. A check never runs twice for the same interval, and
   an alert never fires twice.
+- **Alerts** to webhooks, Slack, Discord and email, queued in Postgres so a
+  worker dying mid-send doesn't lose one.
 - **Public and private dashboards** from one deployment. Private ones sit
   under `/internal`, behind OIDC or an admin login.
 - **Several status pages, one deployment.** Each site has its own hostnames,
@@ -142,7 +144,6 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 
 ## To do
 
-- [ ] Notification providers (webhook, Discord, Slack, email); alerts only log for now
 - [ ] Maintenance windows
 - [ ] Announcements / incident notes on status pages
 - [ ] Push endpoints (heartbeats from cron jobs) and status badges

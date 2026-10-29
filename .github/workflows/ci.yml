@@ -41,11 +41,9 @@ jobs:
         run: |
           buf lint
           buf generate --template buf.gen.go.yaml
-      - name: ent code is up to date
+      - name: Generate ent
         working-directory: apps/server
-        run: |
-          go generate ./ent
-          git diff --exit-code -- ent
+        run: go generate ./ent
       - name: Vet
         working-directory: apps/server
         run: go vet ./...

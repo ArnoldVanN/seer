@@ -102,9 +102,6 @@ alerts:
     description: Paging the API team
 ```
 
-Alerts fire exactly once per trigger or resolve across all replicas.
-
-<Callout type="warn">
-  Notification providers aren't implemented yet: every alert currently logs
-  `notification provider not implemented` with its type and endpoint.
-</Callout>
+`type` is `webhook`, `slack`, `discord` or `email`, and needs that provider
+set up under [`alerting`](/docs/configuration/alerting). Alerts fire exactly
+once per trigger or resolve across all replicas.

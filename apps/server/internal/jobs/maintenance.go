@@ -110,8 +110,17 @@ func Retention(ctx context.Context, d *db.DB, r config.Retention, liveTimeout ti
 			return fmt.Errorf("rollups %s: %w", res, err)
 		}
 	}
+	// Events no replica has a provider for. Sendable ones are retried for
+	// under an hour, so a day only catches those.
+	res, err := d.SQL.ExecContext(ctx, `DELETE FROM notifications WHERE created_at < $1`, now.Add(-24*time.Hour))
+	if err != nil {
+		return fmt.Errorf("notifications: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Warn().Int64("rows", n).Msg("dropped notifications no replica could send")
+	}
 	// Rows of workers that died without deregistering.
-	_, err := d.SQL.ExecContext(ctx, `DELETE FROM workers WHERE last_heartbeat < $1`, now.Add(-10*liveTimeout))
+	_, err = d.SQL.ExecContext(ctx, `DELETE FROM workers WHERE last_heartbeat < $1`, now.Add(-10*liveTimeout))
 	return err
 }
 

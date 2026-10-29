@@ -42,13 +42,14 @@ func (r *recordingNotifier) snapshot() map[string][]notify.Kind {
 }
 
 func startWorker(t *testing.T, d *db.DB, n *recordingNotifier) (*Worker, context.CancelFunc, chan struct{}) {
-	disp := notify.NewDispatcher()
+	disp := notify.New(d, config.Alerting{})
 	disp.Register("test", n)
 	w := NewWorker(d, &Recorder{DB: d, Notify: disp})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		go disp.Run(ctx)
 		if err := w.Run(ctx); err != nil {
 			t.Errorf("worker: %v", err)
 		}

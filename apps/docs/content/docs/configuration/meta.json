@@ -4,6 +4,7 @@
     "index",
     "endpoints",
     "dashboards",
+    "alerting",
     "sites",
     "web"
   ]

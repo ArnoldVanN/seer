@@ -1,0 +1,110 @@
+---
+title: Alerting
+description: Send alerts to a webhook, Slack, Discord or email.
+---
+
+An endpoint's [alerts](/docs/configuration/endpoints#alerts) name a provider
+by type. Each provider is set up once, under `alerting`:
+
+```yaml
+alerting:
+  slack:
+    webhookUrl: ${SLACK_WEBHOOK_URL}
+
+endpoints:
+  - key: api
+    url: https://api.acme.com/health
+    conditions: ["[STATUS] == 200"]
+    alerts:
+      - type: slack
+        description: Paging the API team
+```
+
+An alert whose type has no provider is a config error. Keep webhook URLs and
+passwords in environment variables: `${VAR}` references are expanded when the
+file is read.
+
+Alerts are queued in Postgres along with the status change that triggers
+them, and any worker sends them, so a worker dying doesn't lose one. Each
+endpoint's alerts reach a provider in order. A failed send is retried with
+backoff (10s, doubling up to 10m) for about 40 minutes.
+
+Delivery is at least once: if a worker dies after the provider accepted an
+alert but before it marked it sent, another worker sends it again.
+
+## webhook
+
+```yaml
+alerting:
+  webhook:
+    url: https://hooks.acme.com/seer
+    method: POST
+    headers:
+      Authorization: Bearer ${SEER_WEBHOOK_TOKEN}
+```
+
+| Key | Default | |
+|---|---|---|
+| `url` | | Required. |
+| `method` | `POST` | |
+| `headers` | | Sent with every request. |
+
+The body is the event as JSON:
+
+```json
+{
+  "kind": "triggered",
+  "alertType": "webhook",
+  "endpointKey": "api",
+  "endpointName": "API",
+  "group": "core",
+  "description": "Paging the API team",
+  "error": "status 503",
+  "at": "2026-10-29T08:00:00Z"
+}
+```
+
+`kind` is `triggered` or `resolved`. A resolved event has no `error`. Any
+non-2xx response counts as a failure.
+
+## slack
+
+```yaml
+alerting:
+  slack:
+    webhookUrl: https://hooks.slack.com/services/...
+```
+
+An [incoming webhook](https://api.slack.com/messaging/webhooks). Messages
+post to the channel it was created for.
+
+## discord
+
+```yaml
+alerting:
+  discord:
+    webhookUrl: https://discord.com/api/webhooks/...
+```
+
+A channel webhook, from the channel's *Integrations* settings.
+
+## email
+
+```yaml
+alerting:
+  email:
+    host: smtp.acme.com
+    port: 587
+    username: seer@acme.com
+    password: ${SMTP_PASSWORD}
+    from: Seer <seer@acme.com>
+    to: [oncall@acme.com]
+```
+
+| Key | Default | |
+|---|---|---|
+| `host` | | Required. |
+| `port` | `587` | `465` connects with TLS; other ports switch to TLS with STARTTLS when the server offers it. |
+| `username`, `password` | | Omit for servers without auth. The password is only sent over TLS (or to localhost). |
+| `from` | | Required. An address, optionally with a name. |
+| `to` | | Required. One or more addresses. |

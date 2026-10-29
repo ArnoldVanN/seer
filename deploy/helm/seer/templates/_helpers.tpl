@@ -60,6 +60,9 @@ app.kubernetes.io/component: {{ .component }}
   value: {{ .Release.Revision | quote }}
 - name: SEER_CONFIG
   value: /config/seer.yaml
+{{- with .Values.server.extraEnv }}
+{{ toYaml . }}
+{{- end }}
 {{- end -}}
 
 {{/* A seer server Deployment. Args: root, component, values, command. */}}

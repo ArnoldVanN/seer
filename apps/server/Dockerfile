@@ -13,6 +13,7 @@ COPY apps/server/go.mod apps/server/go.sum apps/server/
 RUN cd apps/server && go mod download
 
 COPY apps/server/ apps/server/
+RUN cd apps/server && go generate ./ent
 ARG VERSION=dev
 ARG TARGETOS TARGETARCH
 RUN cd apps/server && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \

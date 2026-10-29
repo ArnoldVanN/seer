@@ -36,5 +36,7 @@ func (Endpoint) Edges() []ent.Edge {
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("rollups", Rollup.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
+		edge.To("notifications", Notification.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
 	}
 }
