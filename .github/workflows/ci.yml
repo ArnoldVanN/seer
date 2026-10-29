@@ -107,10 +107,11 @@ jobs:
       - name: Lint
         run: |
           helm lint deploy/helm/seer --set database.dsn=postgres://x
+          helm package deploy/helm/seer --version 0.0.0+ci -d dist
           mkdir -p rendered
-          helm template t deploy/helm/seer --set database.dsn=postgres://x > rendered/split.yaml
-          helm template t deploy/helm/seer --set database.dsn=postgres://x --set mode=combined > rendered/combined.yaml
-          helm template t deploy/helm/seer --set database.dsn=postgres://x \
+          helm template t dist/seer-0.0.0+ci.tgz --set database.dsn=postgres://x > rendered/split.yaml
+          helm template t dist/seer-0.0.0+ci.tgz --set database.dsn=postgres://x --set mode=combined > rendered/combined.yaml
+          helm template t dist/seer-0.0.0+ci.tgz --set database.dsn=postgres://x \
             --set httpRoute.enabled=true --set 'httpRoute.parentRefs[0].name=gw' \
             --set 'config.sites[0].key=a' --set 'config.sites[0].hosts[0]=status.example.com' \
             --set 'config.sites[0].dashboards[0]=status' \
@@ -122,3 +123,8 @@ jobs:
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             rendered/*.yaml
+      - uses: helm/kind-action@v1
+      - name: Server-side dry run
+        run: |
+          kubectl apply --dry-run=server -f rendered/split.yaml
+          kubectl apply --dry-run=server -f rendered/combined.yaml
