@@ -1,5 +1,5 @@
 pending:
     - project: seer
-      tag: v0.0.4
-      oldVersion: v0.0.3
-      newVersion: v0.0.4
+      tag: v0.0.5
+      oldVersion: v0.0.4
+      newVersion: v0.0.5
