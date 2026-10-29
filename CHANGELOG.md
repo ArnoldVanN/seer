@@ -1,5 +1,11 @@
 # Changelog
 
+## [seer v0.0.4] - 2026-10-29
+
+### Bug Fixes
+
+- **web:** run as numeric uid (bece6af)
+
 ## [seer v0.0.3] - 2026-10-29
 
 ### Bug Fixes
