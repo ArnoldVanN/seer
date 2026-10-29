@@ -60,19 +60,23 @@ endpoints:
 	if c.Endpoints[1].Type != "tcp" {
 		t.Errorf("type not inferred from tcp:// url: %q", c.Endpoints[1].Type)
 	}
+	if c.Dashboards[0].DefaultRange != "90d" {
+		t.Errorf("defaultRange = %q, want 90d", c.Dashboards[0].DefaultRange)
+	}
 
 	_, err = Parse([]byte(`
 endpoints:
   - { key: Bad Key, url: "", conditions: [] }
   - { key: dup, url: "x", conditions: ["a == b"] }
   - { key: dup, url: "x", conditions: ["a == b"] }
+  - { key: linked, url: "x", conditions: ["a == b"], links: [{ name: Runbook }] }
 dashboards:
-  - { key: d, visibility: secret, endpoints: [nope] }
+  - { key: d, visibility: secret, endpoints: [nope], defaultRange: 2d }
 `))
 	if err == nil {
 		t.Fatal("expected validation errors")
 	}
-	for _, want := range []string{"key must match", "url is required", "at least one condition", "duplicate key", "visibility must be", "unknown endpoint"} {
+	for _, want := range []string{"key must match", "url is required", "at least one condition", "duplicate key", "visibility must be", "unknown endpoint", "defaultRange must be", "links[0]: name and url"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q missing %q", err, want)
 		}
@@ -89,18 +93,21 @@ endpoints:
   - { key: a, group: web, url: "https://a", conditions: ["[STATUS] == 200"] }
 `
 	c, err := Parse([]byte(eps + `
-ui: { title: Base, homeUrl: https://base }
+ui: { title: Base, homeUrl: https://base, footerLinks: [{ name: Privacy, url: /privacy }], hidePoweredBy: true }
 dashboards: [{ key: one, groups: [web] }, { key: two, groups: [web] }]
 sites:
   - { key: first, dashboards: [one] }
-  - { key: second, hosts: [Status.Example.com], ui: { title: Second }, dashboards: [two] }
+  - { key: second, hosts: [Status.Example.com], ui: { title: Second, hidePoweredBy: false }, dashboards: [two] }
 `))
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := c.SiteForHost("status.example.com:443")
-	if s.Key != "second" || s.UI.Title != "Second" || s.UI.HomeURL != "https://base" {
+	if s.Key != "second" || s.UI.Title != "Second" || s.UI.HomeURL != "https://base" || len(s.UI.FooterLinks) != 1 {
 		t.Errorf("SiteForHost = %+v, want second with merged ui", s)
+	}
+	if *s.UI.HidePoweredBy || !*c.SiteByKey("first").UI.HidePoweredBy {
+		t.Error("a site's hidePoweredBy should override the top level's")
 	}
 	if c.SiteForHost("elsewhere").Key != "first" {
 		t.Error("unknown host should get the first site")

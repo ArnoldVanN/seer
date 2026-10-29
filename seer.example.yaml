@@ -24,6 +24,9 @@ ui:
   # logoDark: https://example.com/logo-white.svg
   # favicon: https://example.com/favicon.svg
   # homeUrl: https://acme.com
+  footer: Questions? Email support@acme.com
+  # footerLinks: [{ name: Privacy, url: https://acme.com/privacy }]
+  # hidePoweredBy: true
   customCss: |
     :root { --seer-accent: #7c3aed; --seer-accent-foreground: #fff; }
 
@@ -33,6 +36,7 @@ ui:
 dashboards:
   - key: status
     title: Public status
+    description: Everything customers depend on, checked every minute or faster.
     visibility: public
     groups: [website, api, demo]
   - key: ops
@@ -41,11 +45,15 @@ dashboards:
     # Empty allowedGroups means any signed-in user.
     allowedGroups: [sre, admin]
     groups: [website, api, demo, infra]
+    defaultRange: 24h
 
 endpoints:
   - key: example-site
     name: example.com
     group: website
+    description: The marketing site.
+    links:
+      - { name: Open site, url: https://example.com }
     url: https://example.com
     interval: 30s
     conditions:

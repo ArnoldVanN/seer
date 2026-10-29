@@ -3,6 +3,8 @@
 
 export type Status = "up" | "down" | "unknown"
 
+// Response times (avgMs, minMs, maxMs) cover successful checks only, and are
+// 0 when there were none.
 export type Bucket = {
   start: string
   checks: number
@@ -12,10 +14,14 @@ export type Bucket = {
   maxMs: number
 }
 
+export type LinkView = { name: string; url: string }
+
 export type EndpointView = {
   key: string
   name: string
   group: string
+  description: string
+  links: LinkView[]
   status: Status
   lastCheckedAt: string | null
   lastResponseTimeMs: number
@@ -27,6 +33,9 @@ export type DashboardView = {
   key: string
   title: string
   visibility: "public" | "private"
+  description: string
+  // The range the history covers: the requested one or the dashboard's default.
+  range: Range
   groups: { name: string; endpoints: EndpointView[] }[]
   // The dashboard's own CSS from config, if any.
   customCss: string
@@ -55,11 +64,18 @@ export type SiteView = {
   faviconUrl: string
   // Logo link target; empty means the status page itself.
   homeUrl: string
+  footer: string
+  footerLinks: LinkView[]
+  hidePoweredBy: boolean
 }
 
 export const RANGES = ["24h", "7d", "30d", "90d", "1y"] as const
 export type Range = (typeof RANGES)[number]
 
-export function parseRange(v: string | string[] | undefined): Range {
-  return RANGES.includes(v as Range) ? (v as Range) : "90d"
+// Where nothing else picks one, e.g. an endpoint's own page.
+export const DEFAULT_RANGE: Range = "90d"
+
+// Undefined when the URL doesn't pick a range, so a dashboard's own default applies.
+export function parseRange(v: string | string[] | undefined): Range | undefined {
+  return RANGES.includes(v as Range) ? (v as Range) : undefined
 }

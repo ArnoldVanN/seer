@@ -147,7 +147,6 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] Announcements / incident notes on status pages
 - [ ] Push endpoints (heartbeats from cron jobs) and status badges
 - [ ] More checkers: SSH, STARTTLS, WebSocket, gRPC; HTTP client options (mTLS, proxy, DNS resolver)
-- [ ] Per-dashboard description and default range, per-endpoint descriptions and links, footer options
 - [ ] TimescaleDB mode
 - [ ] MySQL support
 - [ ] Config editor in the UI

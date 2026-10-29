@@ -21,7 +21,7 @@ async function PublicDashboard({ params, searchParams }: PageProps<"/d/[key]">) 
     <DashboardPage
       dashboard={dashboard}
       dashboards={dashboards}
-      range={range}
+      pickedRange={range}
       scope="public"
       linkBase=""
       pagePath={`/d/${key}`}

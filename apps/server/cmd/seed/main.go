@@ -146,11 +146,16 @@ func main() {
 		for m := range 60 {
 			ok, rt := sample(rng, h.Add(time.Duration(m)*time.Minute), now)
 			checks++
-			if ok {
-				successes++
+			// Like jobs.Rollup, response times count successful checks only.
+			if !ok {
+				continue
 			}
+			successes++
 			sum += rt
 			lo, hi = min(lo, rt), max(hi, rt)
+		}
+		if successes == 0 {
+			lo = 0
 		}
 		hours = append(hours, d.Ent.Rollup.Create().
 			SetEndpointID(ep.ID).SetResolution(rollup.Resolution1h).SetBucket(h).

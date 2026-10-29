@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import type { Bucket } from "@/lib/types"
-import { formatBucket, formatUptime } from "./format"
+import { bucketMs, formatBucket, formatUptime } from "./format"
 
 // One bar per bucket. data-level lets custom CSS recolor partial outages.
 function level(b: Bucket): "none" | "ok" | "partial" | "down" {
@@ -26,7 +26,7 @@ type Hover = { i: number; x: number; top: number; bottom: number }
 // positioning so containers with overflow-hidden (cards) don't clip it.
 export function HistoryBars({ history, className }: { history: Bucket[]; className?: string }) {
   const [hover, setHover] = useState<Hover | null>(null)
-  const daily = history.length > 1 && Date.parse(history[1].start) - Date.parse(history[0].start) >= 86_400_000
+  const stride = bucketMs(history)
   const b = hover === null ? null : history[hover.i]
 
   // Fixed coordinates go stale on scroll, so hide the card instead.
@@ -55,14 +55,14 @@ export function HistoryBars({ history, className }: { history: Bucket[]; classNa
       {b &&
         hover &&
         createPortal(
-          <HoverCard bucket={b} daily={daily} hover={hover} />,
+          <HoverCard bucket={b} stride={stride} hover={hover} />,
           document.body,
         )}
     </div>
   )
 }
 
-function HoverCard({ bucket: b, daily, hover }: { bucket: Bucket; daily: boolean; hover: Hover }) {
+function HoverCard({ bucket: b, stride, hover }: { bucket: Bucket; stride: number; hover: Hover }) {
   const left = Math.min(Math.max(hover.x, HALF_CARD_PX), window.innerWidth - HALF_CARD_PX)
   // Above the bar unless that would leave the viewport, then below.
   const above = hover.top > 72
@@ -75,13 +75,13 @@ function HoverCard({ bucket: b, daily, hover }: { bucket: Bucket; daily: boolean
           : { left, top: hover.bottom + 8 }
       }
     >
-      <div className="font-medium">{formatBucket(b.start, daily)}</div>
+      <div className="font-medium">{formatBucket(b.start, stride)}</div>
       {b.checks === 0 ? (
         <div className="text-muted-foreground">No data</div>
       ) : (
         <div className="text-muted-foreground">
-          {formatUptime(b.successes / b.checks, b.checks)} up · {b.successes}/{b.checks} checks · avg{" "}
-          {Math.round(b.avgMs)} ms
+          {formatUptime(b.successes / b.checks, b.checks)} up · {b.successes}/{b.checks} checks
+          {b.successes > 0 && ` · avg ${Math.round(b.avgMs)} ms`}
         </div>
       )}
     </div>

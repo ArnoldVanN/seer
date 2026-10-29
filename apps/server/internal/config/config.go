@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -71,15 +72,28 @@ type UI struct {
 	Favicon       string `yaml:"favicon"`
 	CustomCSS     string `yaml:"customCss"`
 	CustomCSSFile string `yaml:"customCssFile"`
+	// Footer text and links, shown above the "Powered by Seer" credit.
+	Footer      string `yaml:"footer"`
+	FooterLinks []Link `yaml:"footerLinks"`
+	// Pointer so a site can turn the credit back on.
+	HidePoweredBy *bool `yaml:"hidePoweredBy"`
+}
+
+type Link struct {
+	Name string `yaml:"name" json:"name"`
+	URL  string `yaml:"url" json:"url"`
 }
 
 type Dashboard struct {
 	Key           string   `yaml:"key" json:"key"`
 	Title         string   `yaml:"title" json:"title"`
+	Description   string   `yaml:"description" json:"description,omitempty"`
 	Visibility    string   `yaml:"visibility" json:"visibility"`
 	Groups        []string `yaml:"groups" json:"groups"`
 	Endpoints     []string `yaml:"endpoints" json:"endpoints"`
 	AllowedGroups []string `yaml:"allowedGroups" json:"allowedGroups"`
+	// History range shown when the URL doesn't pick one: 24h, 7d, 30d, 90d or 1y.
+	DefaultRange string `yaml:"defaultRange" json:"defaultRange,omitempty"`
 	// CSS for this dashboard's page, after the site's. Served from config,
 	// not the database.
 	CustomCSS     string `yaml:"customCss" json:"customCss,omitempty"`
@@ -95,6 +109,9 @@ type Endpoint struct {
 	Key   string `yaml:"key" json:"key"`
 	Name  string `yaml:"name" json:"name"`
 	Group string `yaml:"group" json:"group"`
+	// Shown under the name on dashboards and on the endpoint's page.
+	Description string `yaml:"description" json:"description,omitempty"`
+	Links       []Link `yaml:"links" json:"links,omitempty"`
 	// http, tcp, dns or icmp. Inferred from URL when empty.
 	Type     string   `yaml:"type" json:"type"`
 	URL      string   `yaml:"url" json:"url"`
@@ -186,6 +203,9 @@ func ParseDuration(s string) (time.Duration, error) {
 }
 
 var keyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+
+// Ranges are the history ranges the UI offers.
+var Ranges = []string{"24h", "7d", "30d", "90d", "1y"}
 
 // Load reads, expands, defaults and validates the config at path.
 func Load(path string) (*Config, error) {
@@ -329,6 +349,9 @@ func (c *Config) applyDefaults() {
 		if d.Visibility == "" {
 			d.Visibility = "public"
 		}
+		if d.DefaultRange == "" {
+			d.DefaultRange = "90d"
+		}
 	}
 	c.applySiteDefaults()
 }
@@ -390,7 +413,9 @@ func (c *Config) validate() error {
 				errs = append(errs, fmt.Errorf("%s: alert type is required", where))
 			}
 		}
+		errs = append(errs, validateLinks(where+": links", e.Links)...)
 	}
+	errs = append(errs, validateLinks("ui.footerLinks", c.UI.FooterLinks)...)
 
 	// Groups that exist per scope: site key, or "" for the top level.
 	groupsIn := map[string]map[string]bool{}
@@ -413,6 +438,9 @@ func (c *Config) validate() error {
 		if d.Visibility != "public" && d.Visibility != "private" {
 			errs = append(errs, fmt.Errorf("%s: visibility must be public or private", where))
 		}
+		if !slices.Contains(Ranges, d.DefaultRange) {
+			errs = append(errs, fmt.Errorf("%s: defaultRange must be one of %s", where, strings.Join(Ranges, ", ")))
+		}
 		for _, k := range d.Endpoints {
 			if !keys[k] {
 				errs = append(errs, fmt.Errorf("%s: unknown endpoint %q", where, k))
@@ -426,6 +454,16 @@ func (c *Config) validate() error {
 	}
 	errs = append(errs, c.validateSites(dkeys)...)
 	return errors.Join(errs...)
+}
+
+func validateLinks(where string, links []Link) []error {
+	var errs []error
+	for i, l := range links {
+		if l.Name == "" || l.URL == "" {
+			errs = append(errs, fmt.Errorf("%s[%d]: name and url are required", where, i))
+		}
+	}
+	return errs
 }
 
 // definitionHash covers only what config sync writes to the DB, so changing a

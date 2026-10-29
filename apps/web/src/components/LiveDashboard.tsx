@@ -63,7 +63,7 @@ function matchesFilter(e: EndpointView, f: Filter): boolean {
 }
 
 function matchesQuery(e: EndpointView, group: string, q: string): boolean {
-  return !q || [e.name, e.key, group].some((s) => s.toLowerCase().includes(q))
+  return !q || [e.name, e.key, e.description, group].some((s) => s.toLowerCase().includes(q))
 }
 
 // Collapsed groups are remembered per dashboard in localStorage. Read through
@@ -346,14 +346,16 @@ function applyUpdate(
         const history = e.history.slice()
         const last = history[history.length - 1]
         if (last) {
-          history[history.length - 1] = {
-            ...last,
-            checks: last.checks + 1,
-            successes: last.successes + (u.success ? 1 : 0),
-            avgMs: (last.avgMs * last.checks + u.responseTimeMs) / (last.checks + 1),
-            minMs: last.checks ? Math.min(last.minMs, u.responseTimeMs) : u.responseTimeMs,
-            maxMs: Math.max(last.maxMs, u.responseTimeMs),
-          }
+          const rt = u.success
+            ? {
+                successes: last.successes + 1,
+                avgMs: (last.avgMs * last.successes + u.responseTimeMs) / (last.successes + 1),
+                minMs: last.successes ? Math.min(last.minMs, u.responseTimeMs) : u.responseTimeMs,
+                maxMs: Math.max(last.maxMs, u.responseTimeMs),
+              }
+            : {}
+          // Response times only count successful checks, like the rollups.
+          history[history.length - 1] = { ...last, checks: last.checks + 1, ...rt }
         }
         return { ...e, status: u.status, lastCheckedAt: u.checkedAt, lastResponseTimeMs: u.responseTimeMs, history }
       }),
@@ -404,6 +406,9 @@ function EndpointRow({ e, now, href }: { e: EndpointView; now: number | null; hr
           {formatUptime(e.uptime, checks)}
         </span>
       </div>
+      {e.description && (
+        <p className="seer-endpoint-description -mt-1 mb-2 text-xs text-muted-foreground">{e.description}</p>
+      )}
       <HistoryBars history={e.history} />
     </li>
   )

@@ -6,26 +6,38 @@ import {
   type Dashboard,
   type DashboardSummary as PbSummary,
   type Endpoint,
+  type Link,
   type Result,
 } from "@seer/protos/common"
-import type {
-  DashboardSummary,
-  DashboardView,
-  EndpointView,
-  Range,
-  ResultView,
-  Status as StatusView,
+import {
+  DEFAULT_RANGE,
+  type DashboardSummary,
+  type DashboardView,
+  type EndpointView,
+  type LinkView,
+  type Range,
+  type ResultView,
+  type Status as StatusView,
 } from "./types"
 
-export function toRange(r: Range): HistoryRange {
-  return {
-    "24h": HistoryRange.HISTORY_RANGE_24H,
-    "7d": HistoryRange.HISTORY_RANGE_7D,
-    "30d": HistoryRange.HISTORY_RANGE_30D,
-    "90d": HistoryRange.HISTORY_RANGE_90D,
-    "1y": HistoryRange.HISTORY_RANGE_1Y,
-  }[r]
+const HISTORY_RANGES: Record<Range, HistoryRange> = {
+  "24h": HistoryRange.HISTORY_RANGE_24H,
+  "7d": HistoryRange.HISTORY_RANGE_7D,
+  "30d": HistoryRange.HISTORY_RANGE_30D,
+  "90d": HistoryRange.HISTORY_RANGE_90D,
+  "1y": HistoryRange.HISTORY_RANGE_1Y,
 }
+
+// Undefined leaves it to the server: the dashboard's default range.
+export function toRange(r: Range | undefined): HistoryRange {
+  return r ? HISTORY_RANGES[r] : HistoryRange.HISTORY_RANGE_UNSPECIFIED
+}
+
+function fromRange(r: HistoryRange): Range {
+  return (Object.keys(HISTORY_RANGES) as Range[]).find((k) => HISTORY_RANGES[k] === r) ?? DEFAULT_RANGE
+}
+
+export const toLinks = (ls: Link[]): LinkView[] => ls.map((l) => ({ name: l.name, url: l.url }))
 
 export function toStatus(s: Status): StatusView {
   if (s === Status.UP) return "up"
@@ -40,6 +52,8 @@ export function toEndpoint(e: Endpoint): EndpointView {
     key: e.key,
     name: e.name,
     group: e.group,
+    description: e.description,
+    links: toLinks(e.links),
     status: toStatus(e.status),
     lastCheckedAt: iso(e.lastCheckedAt),
     lastResponseTimeMs: Number(e.lastResponseTimeMs),
@@ -62,6 +76,8 @@ export function toDashboard(d: Dashboard): DashboardView {
     key: d.key,
     title: d.title,
     visibility: vis(d.visibility),
+    description: d.description,
+    range: fromRange(d.historyRange),
     groups: d.groups.map((g) => ({ name: g.name, endpoints: g.endpoints.map(toEndpoint) })),
     customCss: d.customCss,
   }

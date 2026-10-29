@@ -20,9 +20,11 @@ dashboards:
 |---|---|
 | `key` | Stable id, used in URLs (`/d/<key>`). |
 | `title` | |
+| `description` | Shown under the title. |
 | `visibility` | `public` or `private`. |
 | `groups` | Endpoint groups shown, in order. With [sites](/docs/configuration/sites), groups only match endpoints defined next to the dashboard. |
 | `endpoints` | Extra endpoint keys to include. |
+| `defaultRange` | History range shown when the URL doesn't pick one: `24h`, `7d`, `30d`, `90d` (default) or `1y`. |
 | `customCss` / `customCssFile` | CSS for this dashboard's page, after the site's. It stays loaded after navigating to another page, so scope rules with `[data-dashboard="<key>"]`. |
 | `allowedGroups` | Private only: auth groups that may view it. Empty means any signed-in user (see [Authentication](/docs/authentication)). |
 

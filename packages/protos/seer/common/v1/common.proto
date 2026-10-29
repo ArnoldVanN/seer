@@ -19,17 +19,18 @@ enum Visibility {
 }
 
 // HistoryRange picks both the window and the bucket size of the history bars.
+// Bucket sizes keep every range at roughly the same number of bars.
 enum HistoryRange {
   HISTORY_RANGE_UNSPECIFIED = 0;
-  // 24 hourly buckets.
+  // 144 10-minute buckets.
   HISTORY_RANGE_24H = 1;
-  // 168 hourly buckets.
+  // 168 1-hour buckets.
   HISTORY_RANGE_7D = 2;
-  // 30 daily buckets.
+  // 180 4-hour buckets.
   HISTORY_RANGE_30D = 3;
-  // 90 daily buckets.
+  // 180 12-hour buckets.
   HISTORY_RANGE_90D = 4;
-  // 365 daily buckets.
+  // 183 2-day buckets.
   HISTORY_RANGE_1Y = 5;
 }
 
@@ -37,10 +38,16 @@ message HistoryBucket {
   google.protobuf.Timestamp start = 1;
   int64 checks = 2;
   int64 successes = 3;
-  // Mean response time over the bucket, in milliseconds.
+  // Response times of the bucket's successful checks, in milliseconds; 0
+  // without any. A failure's time is only how long it took to fail.
   double avg_response_time_ms = 4;
   int64 min_response_time_ms = 5;
   int64 max_response_time_ms = 6;
+}
+
+message Link {
+  string name = 1;
+  string url = 2;
 }
 
 message Endpoint {
@@ -53,6 +60,8 @@ message Endpoint {
   // Uptime over the requested history range, 0..1.
   double uptime = 7;
   repeated HistoryBucket history = 8;
+  string description = 9;
+  repeated Link links = 10;
 }
 
 message EndpointGroup {
@@ -73,6 +82,10 @@ message Dashboard {
   repeated EndpointGroup groups = 4;
   // CSS for this dashboard's page, after the site's.
   string custom_css = 5;
+  string description = 6;
+  // The range the history covers: the requested one, or the dashboard's
+  // default when the request left it unspecified.
+  HistoryRange history_range = 7;
 }
 
 message Result {
@@ -155,6 +168,10 @@ message SiteConfig {
   // The site lists at least one private dashboard, so its private path
   // prefix has something behind it.
   bool has_private = 11;
+  // Footer text and links, shown above the "Powered by Seer" credit.
+  string footer = 12;
+  repeated Link footer_links = 13;
+  bool hide_powered_by = 14;
 }
 
 message GetSiteConfigRequest {}

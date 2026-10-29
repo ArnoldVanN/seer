@@ -21,6 +21,6 @@ async function PublicHome({ searchParams }: PageProps<"/">) {
   }
   const dashboard = await getPublicDashboard(dashboards[0].key, range)
   return (
-    <DashboardPage dashboard={dashboard} dashboards={dashboards} range={range} scope="public" linkBase="" pagePath="/" />
+    <DashboardPage dashboard={dashboard} dashboards={dashboards} pickedRange={range} scope="public" linkBase="" pagePath="/" />
   )
 }

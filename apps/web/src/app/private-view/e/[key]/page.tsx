@@ -4,7 +4,7 @@ import { EndpointDetail } from "@/components/EndpointDetail"
 import { getPrivateEndpoint } from "@/lib/data"
 import { privateBase } from "@/lib/routing"
 import { requireViewer } from "@/lib/session"
-import { parseRange } from "@/lib/types"
+import { DEFAULT_RANGE, parseRange } from "@/lib/types"
 
 export default function Page(props: PageProps<"/private-view/e/[key]">) {
   return (
@@ -18,7 +18,7 @@ async function PrivateEndpoint({ params, searchParams }: PageProps<"/private-vie
   const { key } = await params
   const base = privateBase()
   const viewer = await requireViewer(`${base}/e/${key}`)
-  const range = parseRange((await searchParams).range)
+  const range = parseRange((await searchParams).range) ?? DEFAULT_RANGE
   const { endpoint, recent } = await getPrivateEndpoint(viewer, key, range)
   return (
     <>

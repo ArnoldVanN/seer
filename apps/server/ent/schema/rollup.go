@@ -22,6 +22,7 @@ func (Rollup) Fields() []ent.Field {
 		field.Time("bucket"),
 		field.Int64("checks"),
 		field.Int64("successes"),
+		// Response times of successful checks only; 0 without any.
 		field.Int64("rt_sum_ms"),
 		field.Int64("rt_min_ms"),
 		field.Int64("rt_max_ms"),

@@ -21,6 +21,8 @@ endpoints:
 | `key` | required | Stable id (`[a-z0-9_-]`). Renaming it starts a new history. |
 | `name` | key | |
 | `group` | `""` | |
+| `description` | | Shown under the name on dashboards and on the endpoint's page. |
+| `links` | | `[{name, url}]`, shown as buttons on the endpoint's page, e.g. a runbook or the service itself. |
 | `type` | from URL | `http`, `tcp` (`tcp://host:port`), `dns` (`dns://server`), `icmp` (`icmp://host`). |
 | `url` | required | |
 | `interval` | `60s` | |

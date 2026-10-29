@@ -28,7 +28,7 @@ async function PrivateHome({ searchParams }: PageProps<"/private-view">) {
       <DashboardPage
         dashboard={dashboard}
         dashboards={dashboards}
-        range={range}
+        pickedRange={range}
         scope="private"
         linkBase={base}
         pagePath={base}

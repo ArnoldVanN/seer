@@ -185,7 +185,12 @@ func TestHA(t *testing.T) {
 		}
 	}
 
-	// Rollups agree with the raw results.
+	// Rollups agree with the raw results. Stop the workers first, or a check
+	// can land between the rollup and the count.
+	for i := range cancels {
+		cancels[i]()
+		<-dones[i]
+	}
 	if err := jobs.Rollup(ctx, d); err != nil {
 		t.Fatal(err)
 	}

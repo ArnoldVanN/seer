@@ -162,22 +162,26 @@ func (s *Service) GetDashboard(ctx context.Context, req *connect.Request[commonv
 	if err != nil {
 		return nil, err
 	}
-	hist, err := s.history(ctx, eps, req.Msg.HistoryRange)
+	out := &commonv1.Dashboard{Key: d.Key, Title: d.Title, Visibility: visibility(d.Visibility), HistoryRange: req.Msg.HistoryRange}
+	if cd := s.Config.DashboardByKey(d.Key); cd != nil {
+		out.CustomCss = cd.CustomCSS
+		out.Description = cd.Description
+		if out.HistoryRange == commonv1.HistoryRange_HISTORY_RANGE_UNSPECIFIED {
+			out.HistoryRange = historyRange(cd.DefaultRange)
+		}
+	}
+	hist, err := s.history(ctx, eps, out.HistoryRange)
 	if err != nil {
 		return nil, err
 	}
 
-	out := &commonv1.Dashboard{Key: d.Key, Title: d.Title, Visibility: visibility(d.Visibility)}
-	if cd := s.Config.DashboardByKey(d.Key); cd != nil {
-		out.CustomCss = cd.CustomCSS
-	}
 	var cur *commonv1.EndpointGroup
 	for _, e := range eps {
 		if cur == nil || cur.Name != e.GroupName {
 			cur = &commonv1.EndpointGroup{Name: e.GroupName}
 			out.Groups = append(out.Groups, cur)
 		}
-		cur.Endpoints = append(cur.Endpoints, toEndpoint(e, hist[e.ID]))
+		cur.Endpoints = append(cur.Endpoints, s.toEndpoint(e, hist[e.ID]))
 	}
 	return connect.NewResponse(&commonv1.GetDashboardResponse{Dashboard: out}), nil
 }
@@ -232,7 +236,7 @@ func (s *Service) GetEndpointHistory(ctx context.Context, req *connect.Request[c
 	if err != nil {
 		return nil, err
 	}
-	resp := &commonv1.GetEndpointHistoryResponse{Endpoint: toEndpoint(e, hist[e.ID])}
+	resp := &commonv1.GetEndpointHistoryResponse{Endpoint: s.toEndpoint(e, hist[e.ID])}
 	for _, r := range recent {
 		resp.RecentResults = append(resp.RecentResults, &commonv1.Result{
 			CheckedAt:      timestamppb.New(r.CheckedAt),
@@ -258,6 +262,10 @@ func (s *Service) GetSiteConfig(ctx context.Context, _ *connect.Request[commonv1
 		HomeUrl:     ui.HomeURL,
 		FaviconUrl:  ui.Favicon,
 		CustomCss:   ui.CustomCSS,
+		Footer:      ui.Footer,
+		FooterLinks: links(ui.FooterLinks),
+		// Unset and false both keep the credit.
+		HidePoweredBy: ui.HidePoweredBy != nil && *ui.HidePoweredBy,
 	}
 	return connect.NewResponse(&commonv1.GetSiteConfigResponse{Site: site}), nil
 }
@@ -348,82 +356,113 @@ func heartbeatEvent() *commonv1.StatusEvent {
 	}}
 }
 
+// window is one history range: buckets of stride, each summed from the
+// rollup rows of resolution inside it. Strides are chosen so every range has
+// roughly the same number of bars.
 type window struct {
 	resolution rollup.Resolution
 	stride     time.Duration
 	buckets    int
 }
 
+// historyRange maps a config range (one of config.Ranges) to the API enum.
+func historyRange(r string) commonv1.HistoryRange {
+	switch r {
+	case "24h":
+		return commonv1.HistoryRange_HISTORY_RANGE_24H
+	case "7d":
+		return commonv1.HistoryRange_HISTORY_RANGE_7D
+	case "30d":
+		return commonv1.HistoryRange_HISTORY_RANGE_30D
+	case "1y":
+		return commonv1.HistoryRange_HISTORY_RANGE_1Y
+	default:
+		return commonv1.HistoryRange_HISTORY_RANGE_90D
+	}
+}
+
 func windowFor(r commonv1.HistoryRange) window {
 	switch r {
 	case commonv1.HistoryRange_HISTORY_RANGE_24H:
-		return window{rollup.Resolution1h, time.Hour, 24}
+		return window{rollup.Resolution5m, 10 * time.Minute, 144}
 	case commonv1.HistoryRange_HISTORY_RANGE_7D:
 		return window{rollup.Resolution1h, time.Hour, 168}
 	case commonv1.HistoryRange_HISTORY_RANGE_30D:
-		return window{rollup.Resolution1d, 24 * time.Hour, 30}
+		return window{rollup.Resolution1h, 4 * time.Hour, 180}
 	case commonv1.HistoryRange_HISTORY_RANGE_1Y:
-		return window{rollup.Resolution1d, 24 * time.Hour, 365}
+		return window{rollup.Resolution1d, 48 * time.Hour, 183}
 	default:
-		return window{rollup.Resolution1d, 24 * time.Hour, 90}
+		return window{rollup.Resolution1h, 12 * time.Hour, 180}
 	}
 }
+
+// historyQuery sums the rollup rows inside each bucket, so the API reads one
+// row per bar however fine the source resolution is.
+const historyQuery = `
+SELECT endpoint_id, floor(extract(epoch FROM bucket - $1) / $2)::int AS i,
+       sum(checks), sum(successes), sum(rt_sum_ms),
+       coalesce(min(rt_min_ms) FILTER (WHERE successes > 0), 0), max(rt_max_ms)
+FROM rollups
+WHERE endpoint_id = ANY($3) AND resolution = $4 AND bucket >= $1 AND checks > 0
+GROUP BY endpoint_id, i`
 
 // history returns a fixed-length bucket series per endpoint ID, oldest first,
 // with empty buckets where there was no data. It only reads rollups.
 func (s *Service) history(ctx context.Context, eps []*ent.Endpoint, r commonv1.HistoryRange) (map[int][]*commonv1.HistoryBucket, error) {
 	w := windowFor(r)
 	// Truncate is relative to the zero time, which lines up with UTC
-	// hours and days, matching the rollup buckets.
+	// hours and days, so each bucket holds whole rollup rows.
 	first := time.Now().UTC().Truncate(w.stride).Add(-time.Duration(w.buckets-1) * w.stride)
 
 	ids := make([]int, len(eps))
+	out := make(map[int][]*commonv1.HistoryBucket, len(eps))
 	for i, e := range eps {
 		ids[i] = e.ID
+		series := make([]*commonv1.HistoryBucket, w.buckets)
+		for j := range series {
+			series[j] = &commonv1.HistoryBucket{Start: timestamppb.New(first.Add(time.Duration(j) * w.stride))}
+		}
+		out[e.ID] = series
 	}
-	rows, err := s.DB.Ent.Rollup.Query().
-		Where(
-			rollup.EndpointIDIn(ids...),
-			rollup.ResolutionEQ(w.resolution),
-			rollup.BucketGTE(first),
-		).
-		All(ctx)
+
+	rows, err := s.DB.SQL.QueryContext(ctx, historyQuery, first, w.stride.Seconds(), ids, string(w.resolution))
 	if err != nil {
 		return nil, err
 	}
-
-	out := make(map[int][]*commonv1.HistoryBucket, len(eps))
-	for _, id := range ids {
-		series := make([]*commonv1.HistoryBucket, w.buckets)
-		for i := range series {
-			series[i] = &commonv1.HistoryBucket{Start: timestamppb.New(first.Add(time.Duration(i) * w.stride))}
+	defer rows.Close()
+	for rows.Next() {
+		var id, i int
+		var b commonv1.HistoryBucket
+		var rtSum int64
+		if err := rows.Scan(&id, &i, &b.Checks, &b.Successes, &rtSum, &b.MinResponseTimeMs, &b.MaxResponseTimeMs); err != nil {
+			return nil, err
 		}
-		out[id] = series
-	}
-	for _, row := range rows {
-		i := int(row.Bucket.Sub(first) / w.stride)
 		if i < 0 || i >= w.buckets {
 			continue
 		}
-		b := out[row.EndpointID][i]
-		b.Checks = row.Checks
-		b.Successes = row.Successes
-		if row.Checks > 0 {
-			b.AvgResponseTimeMs = float64(row.RtSumMs) / float64(row.Checks)
-			b.MinResponseTimeMs = row.RtMinMs
-			b.MaxResponseTimeMs = row.RtMaxMs
+		dst := out[id][i]
+		dst.Checks, dst.Successes = b.Checks, b.Successes
+		// Response times cover successful checks only (see jobs.Rollup).
+		if b.Successes > 0 {
+			dst.AvgResponseTimeMs = float64(rtSum) / float64(b.Successes)
 		}
+		dst.MinResponseTimeMs, dst.MaxResponseTimeMs = b.MinResponseTimeMs, b.MaxResponseTimeMs
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
-func toEndpoint(e *ent.Endpoint, hist []*commonv1.HistoryBucket) *commonv1.Endpoint {
+func (s *Service) toEndpoint(e *ent.Endpoint, hist []*commonv1.HistoryBucket) *commonv1.Endpoint {
 	out := &commonv1.Endpoint{
 		Key:     e.Key,
 		Name:    e.Name,
 		Group:   e.GroupName,
 		Status:  commonv1.Status_STATUS_UNKNOWN,
 		History: hist,
+	}
+	// Display-only fields come from the config, like dashboard CSS.
+	if ce := s.Config.EndpointByKey(e.Key); ce != nil {
+		out.Description = ce.Description
+		out.Links = links(ce.Links)
 	}
 	if st := e.Edges.State; st != nil {
 		out.Status = status(string(st.Status))
@@ -439,6 +478,14 @@ func toEndpoint(e *ent.Endpoint, hist []*commonv1.HistoryBucket) *commonv1.Endpo
 	}
 	if checks > 0 {
 		out.Uptime = float64(ok) / float64(checks)
+	}
+	return out
+}
+
+func links(ls []config.Link) []*commonv1.Link {
+	out := make([]*commonv1.Link, len(ls))
+	for i, l := range ls {
+		out[i] = &commonv1.Link{Name: l.Name, Url: l.URL}
 	}
 	return out
 }

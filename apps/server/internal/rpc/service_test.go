@@ -9,6 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/seer-status/seer/apps/server/ent/endpoint"
+	"github.com/seer-status/seer/apps/server/ent/rollup"
 	"github.com/seer-status/seer/apps/server/internal/auth"
 	"github.com/seer-status/seer/apps/server/internal/config"
 	"github.com/seer-status/seer/apps/server/internal/events"
@@ -26,10 +28,10 @@ func TestVisibility(t *testing.T) {
 	ctx := context.Background()
 	cfg, err := config.Parse([]byte(`
 endpoints:
-  - { key: web, group: public, url: "http://x", conditions: ["[STATUS] == 200"] }
+  - { key: web, group: public, url: "http://x", conditions: ["[STATUS] == 200"], description: Site, links: [{ name: Open, url: "http://x" }] }
   - { key: db,  group: infra,  url: "tcp://x:5432", conditions: ["[CONNECTED] == true"] }
 dashboards:
-  - { key: status, visibility: public,  groups: [public] }
+  - { key: status, visibility: public,  groups: [public], description: Public, defaultRange: 7d }
   - { key: ops,    visibility: private, groups: [public, infra], allowedGroups: [sre] }
   - { key: all,    visibility: private, groups: [infra] }
 `))
@@ -74,8 +76,29 @@ dashboards:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := len(dash.Msg.Dashboard.Groups[0].Endpoints[0].History); n != 90 {
-		t.Errorf("default history has %d buckets, want 90", n)
+	if got := dash.Msg.Dashboard; got.HistoryRange != commonv1.HistoryRange_HISTORY_RANGE_7D || len(got.Groups[0].Endpoints[0].History) != 168 || got.Description != "Public" {
+		t.Errorf("dashboard = %v, want its 7d default range and description", got)
+	}
+	if e := dash.Msg.Dashboard.Groups[0].Endpoints[0]; e.Description != "Site" || len(e.Links) != 1 {
+		t.Errorf("endpoint = %v, want its description and link", e)
+	}
+	// Two hourly rollups inside the newest 4h bar of the 30d range.
+	webID := d.Ent.Endpoint.Query().Where(endpoint.Key("web")).OnlyIDX(ctx)
+	bar := time.Now().UTC().Truncate(4 * time.Hour)
+	d.Ent.Rollup.Create().SetEndpointID(webID).SetResolution(rollup.Resolution1h).SetBucket(bar).
+		SetChecks(4).SetSuccesses(4).SetRtSumMs(400).SetRtMinMs(50).SetRtMaxMs(200).ExecX(ctx)
+	d.Ent.Rollup.Create().SetEndpointID(webID).SetResolution(rollup.Resolution1h).SetBucket(bar.Add(time.Hour)).
+		SetChecks(6).SetSuccesses(5).SetRtSumMs(1400).SetRtMinMs(20).SetRtMaxMs(500).ExecX(ctx)
+	dash, err = pc.GetDashboard(ctx, connect.NewRequest(&commonv1.GetDashboardRequest{Key: "status", HistoryRange: commonv1.HistoryRange_HISTORY_RANGE_30D}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hist := dash.Msg.Dashboard.Groups[0].Endpoints[0].History
+	if len(hist) != 180 {
+		t.Fatalf("requested 30d history has %d buckets, want 180", len(hist))
+	}
+	if b := hist[len(hist)-1]; b.Checks != 10 || b.Successes != 9 || b.AvgResponseTimeMs != 200 || b.MinResponseTimeMs != 20 || b.MaxResponseTimeMs != 500 {
+		t.Errorf("newest 4h bar = %v, want both hourly rollups summed", b)
 	}
 
 	privClient := func(groups ...string) privatev1connect.PrivateStatusServiceClient {

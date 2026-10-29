@@ -7,14 +7,15 @@ import { RangePicker } from "./RangePicker"
 export function DashboardPage({
   dashboard,
   dashboards,
-  range,
+  pickedRange,
   scope,
   linkBase,
   pagePath,
 }: {
   dashboard: DashboardView
   dashboards: DashboardSummary[]
-  range: Range
+  // The range from the URL, if any; the dashboard's own default otherwise.
+  pickedRange: Range | undefined
   scope: "public" | "private"
   linkBase: string
   pagePath: string
@@ -28,13 +29,22 @@ export function DashboardPage({
           {dashboard.customCss}
         </style>
       )}
-      <DashboardTabs dashboards={dashboards} current={dashboard.key} linkBase={linkBase} />
+      <DashboardTabs dashboards={dashboards} current={dashboard.key} linkBase={linkBase} pickedRange={pickedRange} />
       <div className="seer-toolbar mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="seer-dashboard-title text-2xl font-semibold">{dashboard.title}</h1>
-        <RangePicker current={range} base={pagePath} />
+        <RangePicker current={dashboard.range} base={pagePath} />
       </div>
+      {dashboard.description && (
+        <p className="seer-dashboard-description -mt-1 mb-4 text-sm text-muted-foreground">{dashboard.description}</p>
+      )}
       {/* Keyed so switching dashboards resets search, filters and live state. */}
-      <LiveDashboard key={dashboard.key} initial={dashboard} scope={scope} linkBase={linkBase} range={range} />
+      <LiveDashboard
+        key={dashboard.key}
+        initial={dashboard}
+        scope={scope}
+        linkBase={linkBase}
+        range={dashboard.range}
+      />
     </>
   )
 }

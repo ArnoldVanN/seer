@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"net"
 	"os"
@@ -173,13 +174,20 @@ func mergeUI(base, over UI) UI {
 		}
 		return b
 	}
+	footerLinks := base.FooterLinks
+	if len(over.FooterLinks) > 0 {
+		footerLinks = over.FooterLinks
+	}
 	return UI{
-		Title:       pick(base.Title, over.Title),
-		Description: pick(base.Description, over.Description),
-		Logo:        pick(base.Logo, over.Logo),
-		LogoDark:    pick(base.LogoDark, over.LogoDark),
-		HomeURL:     pick(base.HomeURL, over.HomeURL),
-		Favicon:     pick(base.Favicon, over.Favicon),
+		Title:         pick(base.Title, over.Title),
+		Description:   pick(base.Description, over.Description),
+		Logo:          pick(base.Logo, over.Logo),
+		LogoDark:      pick(base.LogoDark, over.LogoDark),
+		HomeURL:       pick(base.HomeURL, over.HomeURL),
+		Favicon:       pick(base.Favicon, over.Favicon),
+		Footer:        pick(base.Footer, over.Footer),
+		FooterLinks:   footerLinks,
+		HidePoweredBy: cmp.Or(over.HidePoweredBy, base.HidePoweredBy),
 		// Resolved into CustomCSS by loadSiteCSS.
 		CustomCSS:     over.CustomCSS,
 		CustomCSSFile: over.CustomCSSFile,
@@ -256,6 +264,10 @@ func (c *Config) validateSites(dashboards map[string]bool) []error {
 			if e.Def == nil && e.Key == "*" && len(s.DashboardEntries) > 1 {
 				errs = append(errs, fmt.Errorf(`%s: "*" can't be combined with other dashboards`, where))
 			}
+		}
+		// Inherited links were already checked at the top level.
+		if !slices.Equal(s.UI.FooterLinks, c.UI.FooterLinks) {
+			errs = append(errs, validateLinks(where+": ui.footerLinks", s.UI.FooterLinks)...)
 		}
 		if len(s.AllowedGroups) > 0 && !s.Private {
 			errs = append(errs, fmt.Errorf("%s: allowedGroups needs private: true", where))

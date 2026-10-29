@@ -4,7 +4,7 @@ import { cacheLife } from "next/cache"
 import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import { publicClient, privateClient } from "./api"
-import { toDashboard, toEndpoint, toRange, toResult, toSummary } from "./convert"
+import { toDashboard, toEndpoint, toLinks, toRange, toResult, toSummary } from "./convert"
 import type { Viewer } from "./session"
 import type { Range, SiteView } from "./types"
 
@@ -49,6 +49,9 @@ export async function getSite(host: string): Promise<SiteView> {
     logo: resolveLogo(site?.logoUrl ?? "", site?.logoDarkUrl ?? ""),
     faviconUrl: site?.faviconUrl || DEFAULT_FAVICON,
     homeUrl: site?.homeUrl ?? "",
+    footer: site?.footer ?? "",
+    footerLinks: toLinks(site?.footerLinks ?? []),
+    hidePoweredBy: site?.hidePoweredBy ?? false,
   }
 }
 
@@ -78,11 +81,11 @@ async function cachedPublicDashboards(key: string) {
   return dashboards.map(toSummary)
 }
 
-export async function getPublicDashboard(key: string, range: Range) {
+export async function getPublicDashboard(key: string, range: Range | undefined) {
   return cachedPublicDashboard(await siteKey(), key, range)
 }
 
-async function cachedPublicDashboard(site: string, key: string, range: Range) {
+async function cachedPublicDashboard(site: string, key: string, range: Range | undefined) {
   "use cache"
   cacheLife(publicLife)
   try {
@@ -115,7 +118,7 @@ export async function listPrivateDashboards(viewer: Viewer) {
   return dashboards.map(toSummary)
 }
 
-export async function getPrivateDashboard(viewer: Viewer, key: string, range: Range) {
+export async function getPrivateDashboard(viewer: Viewer, key: string, range: Range | undefined) {
   try {
     const client = privateClient(viewer, { key: await siteKey() })
     const { dashboard } = await client.getDashboard({ key, historyRange: toRange(range) })

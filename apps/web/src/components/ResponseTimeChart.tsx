@@ -1,9 +1,9 @@
 "use client"
 
-import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, XAxis, YAxis } from "recharts"
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart"
 import type { Bucket } from "@/lib/types"
-import { formatBucket, formatUptime } from "./format"
+import { bucketMs, formatBucket, formatUptime } from "./format"
 
 const config = {
   avg: { label: "Average", color: "var(--chart-1)" },
@@ -19,18 +19,40 @@ type Point = {
   failed: boolean
 }
 
+// Runs of consecutive buckets where every check failed, as [from, to] times
+// centered on the buckets like the line's points, clamped to the x domain.
+function outages(data: Point[], stride: number): [number, number][] {
+  const out: [number, number][] = []
+  if (data.length === 0) return out
+  const lo = data[0].t
+  const hi = data[data.length - 1].t
+  for (const p of data) {
+    if (p.checks === 0 || p.successes > 0) continue
+    const from = Math.max(lo, p.t - stride / 2)
+    const to = Math.min(hi, p.t + stride / 2)
+    const last = out[out.length - 1]
+    if (last && last[1] === from) last[1] = to
+    else out.push([from, to])
+  }
+  return out
+}
+
 // Average response time per bucket, with a band from the fastest to the
-// slowest check and a red dot on buckets that had failures.
+// slowest check and a red dot on buckets that had failures. Buckets where
+// every check failed have no response time, so they get a red column instead.
 export function ResponseTimeChart({ history }: { history: Bucket[] }) {
-  const daily = history.length > 1 && Date.parse(history[1].start) - Date.parse(history[0].start) >= 86_400_000
+  const stride = bucketMs(history)
+  // Ticks show dates once the chart spans more than a couple of days.
+  const daily = stride * history.length > 2 * 86_400_000
   const data: Point[] = history.map((b) => ({
     t: Date.parse(b.start),
-    avg: b.checks ? Math.round(b.avgMs) : null,
-    range: b.checks ? [b.minMs, b.maxMs] : null,
+    avg: b.successes ? Math.round(b.avgMs) : null,
+    range: b.successes ? [b.minMs, b.maxMs] : null,
     checks: b.checks,
     successes: b.successes,
     failed: b.checks > 0 && b.successes < b.checks,
   }))
+  const hasTimes = data.some((p) => p.avg !== null)
   // About six ticks, on bucket boundaries so they read as round times.
   const every = Math.max(1, Math.ceil(data.length / 6))
   const ticks = data.filter((_, i) => (data.length - 1 - i) % every === 0).map((p) => p.t)
@@ -58,7 +80,19 @@ export function ResponseTimeChart({ history }: { history: Bucket[] }) {
           tickLine={false}
           axisLine={false}
         />
-        <YAxis width={56} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}ms`} />
+        {/* With no successful checks there are no values to scale to, and
+            recharts then drops the axis and everything drawn against it. A
+            fixed domain (allowDataOverflow makes recharts keep it) gives the
+            outage columns a scale; the axis itself is hidden. */}
+        <YAxis
+          width={56}
+          domain={hasTimes ? [0, "auto"] : [0, 1]}
+          hide={!hasTimes}
+          allowDataOverflow={!hasTimes}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v) => `${v}ms`}
+        />
         <ChartTooltip
           cursor={{ strokeDasharray: "3 3" }}
           content={({ active, payload }) => {
@@ -66,13 +100,17 @@ export function ResponseTimeChart({ history }: { history: Bucket[] }) {
             if (!p) return null
             return (
               <div className="grid min-w-36 gap-1 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
-                <div className="font-medium">{formatBucket(new Date(p.t).toISOString(), daily)}</div>
+                <div className="font-medium">{formatBucket(new Date(p.t).toISOString(), stride)}</div>
                 {p.checks === 0 ? (
                   <div className="text-muted-foreground">No data</div>
                 ) : (
                   <>
-                    <Row label="Average" value={`${p.avg} ms`} />
-                    <Row label="Min – max" value={`${p.range?.[0]} – ${p.range?.[1]} ms`} />
+                    {p.avg !== null && (
+                      <>
+                        <Row label="Average" value={`${p.avg} ms`} />
+                        <Row label="Min – max" value={`${p.range?.[0]} – ${p.range?.[1]} ms`} />
+                      </>
+                    )}
                     <Row
                       label="Uptime"
                       value={`${formatUptime(p.successes / p.checks, p.checks)} (${p.successes}/${p.checks})`}
@@ -84,6 +122,17 @@ export function ResponseTimeChart({ history }: { history: Bucket[] }) {
             )
           }}
         />
+        {outages(data, stride).map(([x1, x2]) => (
+          <ReferenceArea
+            key={x1}
+            x1={x1}
+            x2={x2}
+            fill="var(--seer-down)"
+            fillOpacity={0.15}
+            stroke="none"
+            className="seer-rt-outage"
+          />
+        ))}
         <Area dataKey="range" type="monotone" stroke="none" fill="url(#seer-rt-fill)" connectNulls={false} isAnimationActive={false} />
         <Line dataKey="avg" type="monotone" stroke="var(--color-avg)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
         {data

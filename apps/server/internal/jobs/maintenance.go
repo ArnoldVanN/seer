@@ -14,6 +14,10 @@ import (
 // Buckets are aligned to this origin, so days are UTC days.
 const origin = `TIMESTAMPTZ '2000-01-01 00:00:00+00'`
 
+// Response times (rt_*) cover successful checks only: a failure's time is how
+// long it took to fail, which says nothing about how fast the endpoint is.
+// They're 0 in buckets without successes.
+//
 // Each tier is rebuilt from the tier below over a lookback window. Rebuilding
 // whole buckets with an upsert is idempotent, so a new leader can redo work
 // safely. The lookback also covers a leader gap of that length.
@@ -28,7 +32,10 @@ var rollupSteps = []struct {
 		query: `
 INSERT INTO rollups (endpoint_id, resolution, bucket, checks, successes, rt_sum_ms, rt_min_ms, rt_max_ms)
 SELECT endpoint_id, '5m', date_bin('5 minutes', checked_at, ` + origin + `) AS b,
-       count(*), count(*) FILTER (WHERE success), sum(response_time_ms), min(response_time_ms), max(response_time_ms)
+       count(*), count(*) FILTER (WHERE success),
+       coalesce(sum(response_time_ms) FILTER (WHERE success), 0),
+       coalesce(min(response_time_ms) FILTER (WHERE success), 0),
+       coalesce(max(response_time_ms) FILTER (WHERE success), 0)
 FROM results
 WHERE checked_at >= date_bin('5 minutes', now() - $1::interval, ` + origin + `)
 GROUP BY endpoint_id, b
@@ -52,7 +59,8 @@ func rollupFrom(to, from, stride string) string {
 	return `
 INSERT INTO rollups (endpoint_id, resolution, bucket, checks, successes, rt_sum_ms, rt_min_ms, rt_max_ms)
 SELECT endpoint_id, '` + to + `', date_bin('` + stride + `', bucket, ` + origin + `) AS b,
-       sum(checks), sum(successes), sum(rt_sum_ms), min(rt_min_ms), max(rt_max_ms)
+       sum(checks), sum(successes), sum(rt_sum_ms),
+       coalesce(min(rt_min_ms) FILTER (WHERE successes > 0), 0), max(rt_max_ms)
 FROM rollups
 WHERE resolution = '` + from + `' AND bucket >= date_bin('` + stride + `', now() - $1::interval, ` + origin + `)
 GROUP BY endpoint_id, b

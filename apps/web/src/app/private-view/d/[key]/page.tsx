@@ -27,7 +27,7 @@ async function PrivateDashboard({ params, searchParams }: PageProps<"/private-vi
       <DashboardPage
         dashboard={dashboard}
         dashboards={dashboards}
-        range={range}
+        pickedRange={range}
         scope="private"
         linkBase={base}
         pagePath={`${base}/d/${key}`}

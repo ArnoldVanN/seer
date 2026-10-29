@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist } from "next/font/google"
 import { connection } from "next/server"
 import { Suspense } from "react"
+import { SiteFooter, SiteFooterFallback } from "@/components/SiteFooter"
 import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { currentSite } from "@/lib/data"
@@ -34,12 +35,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <SiteHeader />
           </Suspense>
           <main className="seer-main mx-auto max-w-page px-4 pb-12">{children}</main>
-          <footer className="seer-footer mx-auto max-w-page px-4 pb-8 text-center text-xs text-muted-foreground">
-            Powered by{" "}
-            <a href="https://github.com/ArnoldVanN/seer" className="underline underline-offset-2 hover:text-foreground">
-              Seer
-            </a>
-          </footer>
+          <Suspense fallback={<SiteFooterFallback />}>
+            <SiteFooter />
+          </Suspense>
         </TooltipProvider>
       </body>
     </html>
