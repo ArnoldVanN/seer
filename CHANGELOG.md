@@ -1,5 +1,11 @@
 # Changelog
 
+## [seer v0.0.3] - 2026-10-29
+
+### Bug Fixes
+
+- **chart:** sanitize build metadata in helm.sh/chart label (b642ee2)
+
 ## [seer v0.0.2] - 2026-10-29
 
 ### Bug Fixes
