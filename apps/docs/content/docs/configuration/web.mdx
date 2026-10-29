@@ -16,6 +16,19 @@ them from values; for `pnpm dev`, copy `apps/web/.env.example` to
 | `SEER_INTERNAL_JWT_SECRET` | Must match `server.internalJwtSecret`. Signs the short-lived tokens for the private API. |
 | `SEER_SESSION_SECRET` | Encrypts the session cookie. |
 
+## HTTPS
+
+| Variable | |
+|---|---|
+| `SEER_FORCE_HTTPS` | `true` treats every request as `https` when building sign-in redirect URIs and setting secure cookies. Otherwise the scheme comes from `X-Forwarded-Proto`. |
+
+The web app reads the browser's scheme from `X-Forwarded-Proto`. When TLS
+ends before your proxy (a CDN, a tunnel or an outer load balancer), the
+proxy may overwrite it with `http`, and your OIDC provider rejects the
+`http://` redirect URI. Prefer making the proxy trust the upstream header
+(in Traefik, `forwardedHeaders.trustedIPs`); otherwise set this. In Helm
+this is `web.forceHttps`.
+
 ## Private dashboards
 
 | Variable | |

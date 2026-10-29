@@ -9,6 +9,8 @@
 
 Highly available, self-hosted status pages and uptime monitoring.
 
+**📖 Documentation: [seer.arnovannieuwenhuyzen.com/docs](https://seer.arnovannieuwenhuyzen.com/docs)**
+
 Seer checks your endpoints (HTTP, TCP, DNS, ICMP) and serves a public status
 page, plus private dashboards for your team. It's configured from one YAML
 file, like [Gatus](https://github.com/TwiN/gatus), but every replica is
@@ -76,9 +78,13 @@ endpoints:
       - "[CERTIFICATE_EXPIRATION] > 7d"
 ```
 
-See the [docs](https://seer.arnovannieuwenhuyzen.com/docs) for [every option](https://seer.arnovannieuwenhuyzen.com/docs/configuration),
-[custom CSS](https://seer.arnovannieuwenhuyzen.com/docs/theming) and [how HA works](https://seer.arnovannieuwenhuyzen.com/docs/architecture). They're
-built from `apps/docs`.
+The [documentation](https://seer.arnovannieuwenhuyzen.com/docs) covers the rest:
+
+- [Configuration reference](https://seer.arnovannieuwenhuyzen.com/docs/configuration): every option
+- [Theming](https://seer.arnovannieuwenhuyzen.com/docs/theming): custom CSS variables and class names
+- [Architecture](https://seer.arnovannieuwenhuyzen.com/docs/architecture): how sharding and HA work
+
+The docs site is built from `apps/docs`.
 
 ## Development
 

@@ -135,6 +135,10 @@ web:
     minReplicas: 2
     maxReplicas: 6
     targetCPUUtilizationPercentage: 70
+  # Treat every request as https for sign-in redirect URIs and secure cookies.
+  # Set it when TLS ends before your proxy and it doesn't forward
+  # X-Forwarded-Proto: https.
+  forceHttps: false
   extraEnv: []
 
 podDisruptionBudget:

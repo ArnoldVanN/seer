@@ -5,7 +5,7 @@ import { createHash, timingSafeEqual } from "node:crypto"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { env } from "@/lib/env"
-import { safeNext } from "@/lib/origin"
+import { headerOrigin, safeNext } from "@/lib/origin"
 import { sealSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
 
 // username is echoed back so the form keeps it: React resets a form after its
@@ -22,11 +22,11 @@ export async function adminLogin(_: LoginState, form: FormData): Promise<LoginSt
   const ok = await checkPassword(password, admin)
   if (!ok || username !== admin.username) return { error: "Wrong username or password.", username }
 
-  const proto = (await headers()).get("x-forwarded-proto") ?? ""
+  const secure = headerOrigin(await headers()).startsWith("https://")
   ;(await cookies()).set(
     SESSION_COOKIE,
     await sealSession({ sub: `admin:${admin.username}`, name: admin.username, groups: admin.groups }),
-    sessionCookieOptions(proto === "https"),
+    sessionCookieOptions(secure),
   )
   redirect(safeNext(String(form.get("next") ?? "")))
 }

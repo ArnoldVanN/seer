@@ -36,6 +36,9 @@ spec:
             - name: SEER_SESSION_SECRET
               valueFrom: { secretKeyRef: { name: {{ include "seer.secretName" . }}, key: session-secret } }
             - { name: SEER_PRIVATE_PATH_PREFIX, value: {{ .Values.privateDashboards.pathPrefix | quote }} }
+            {{- if .Values.web.forceHttps }}
+            - { name: SEER_FORCE_HTTPS, value: "true" }
+            {{- end }}
             {{- with .Values.auth.oidc }}
             {{- if .issuer }}
             - { name: SEER_OIDC_ISSUER, value: {{ .issuer | quote }} }
