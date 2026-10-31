@@ -1,5 +1,11 @@
 # Changelog
 
+## [seer v0.0.6] - 2026-10-29
+
+### Features
+
+- **server:** show failed conditions, URL and downtime in alerts (2fdac7a)
+
 ## [seer v0.0.5] - 2026-10-29
 
 ### Features
