@@ -1,0 +1,88 @@
+---
+title: Push endpoints
+description: Monitor jobs and services that ping Seer, instead of being checked by it.
+---
+
+Seer usually checks an endpoint by sending it a request (HTTP, TCP, DNS or
+ICMP) on every interval. A push endpoint has nothing for Seer to send a
+request to. Instead, your job pings Seer each time it runs, and Seer marks the
+endpoint down when the pings stop coming. Use one for backups, cron jobs,
+queue consumers, or anything behind a firewall Seer can't reach.
+
+```yaml
+endpoints:
+  - key: nightly-backup
+    name: Nightly backup
+    interval: 24h        # how often a ping is expected
+    grace: 30m           # how late it may be
+    token: ${BACKUP_PUSH_TOKEN}
+    alerts:
+      - { type: slack, failureThreshold: 1 }
+```
+
+| Key | Default | |
+|---|---|---|
+| `token` | required | At least 16 characters, e.g. `openssl rand -hex 16`. Keep it in the environment with `${VAR}`. |
+| `interval` | `60s` | How often the job runs. |
+| `grace` | half the interval, at most `5m` | Extra time before a missing ping counts. |
+
+`type: push` is inferred from a `token` without a `url`. Push endpoints have
+no `url` or `conditions`; everything else (groups, dashboards, thresholds,
+alerts, [badges](/docs/badges)) works as for any endpoint.
+
+## Pinging
+
+Send a `GET` or `POST` to `/push/<key>` on any site's hostname, with the token
+as a bearer token or as `?token=`:
+
+```sh
+curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
+  https://status.example.com/push/nightly-backup
+```
+
+| Parameter | |
+|---|---|
+| `status` | `up` (default) or `down`. |
+| `msg` | Shown with the result, e.g. why the job failed. |
+| `duration` | How long the job took, in milliseconds or as a duration (`1.5s`, `4m`). Charted as the response time. |
+
+To report failures as well as successes, ping once at the end with the job's
+outcome:
+
+```sh
+# crontab
+0 3 * * * backup.sh && curl -fsS "https://status.example.com/push/nightly-backup?token=$TOKEN" \
+  || curl -fsS "https://status.example.com/push/nightly-backup?token=$TOKEN&status=down&msg=backup+failed"
+```
+
+Or from a systemd service, with the run time:
+
+```ini
+[Service]
+ExecStart=/usr/local/bin/backup.sh
+ExecStopPost=/bin/sh -c 'curl -fsS -H "Authorization: Bearer $TOKEN" \
+  "https://status.example.com/push/nightly-backup?status=$([ "$SERVICE_RESULT" = success ] && echo up || echo down)"'
+```
+
+A wrong token, an unknown key, a disabled endpoint and one that isn't a push
+endpoint all answer `404`, so keys can't be probed. Each endpoint takes a
+burst of 5 pings, then one a second; more answer `429`.
+
+## Missed pings
+
+Until the first ping the endpoint is `unknown`. After that, when
+`interval + grace` passes without a ping, the worker that owns the endpoint
+records a failed result (`no ping for 24h30m`), and another every
+`interval + grace` while the job stays silent. Failures count toward
+`failureThreshold` and alert thresholds like any check, and the next ping
+resolves them.
+
+The deadline is worked out from the last stored result, so two workers that
+both own the endpoint during a handoff record the same missed ping once. After
+a long outage of Seer itself, the backlog collapses into a single failure.
+
+## Routing
+
+Pings go to the Go API's public port. With the Helm chart's `httpRoute` and
+`directRpc` (the default), the HTTPRoute sends `/push/` there directly;
+otherwise the web app forwards it, as it does `/rpc`.

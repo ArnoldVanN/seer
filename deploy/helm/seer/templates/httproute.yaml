@@ -41,6 +41,11 @@ spec:
       # Streams stay open; "0s" disables the request timeout.
       timeouts:
         request: 0s
+    # Push endpoint pings, from cron jobs and the like.
+    - matches:
+        - path: { type: PathPrefix, value: /push/ }
+      backendRefs:
+        - { name: {{ $fullname }}-public, port: 8080 }
     {{- end }}
     # The private-rpc proxy streams too.
     - matches:

@@ -33,6 +33,7 @@ import (
 	"github.com/seer-status/seer/apps/server/internal/events"
 	"github.com/seer-status/seer/apps/server/internal/jobs"
 	"github.com/seer-status/seer/apps/server/internal/notify"
+	"github.com/seer-status/seer/apps/server/internal/push"
 	"github.com/seer-status/seer/apps/server/internal/rpc"
 	"github.com/seer-status/seer/apps/server/internal/scheduler"
 	"github.com/seer-status/seer/apps/server/internal/session"
@@ -147,8 +148,11 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 	ops.Handle("/metrics", promhttp.Handler())
 	serve(ctx, g, "ops", cfg.Server.OpsPort, ops)
 
+	// Nil on an API-only replica: pings recorded there are queued for the
+	// workers' dispatchers to pick up.
+	var disp *notify.Dispatcher
 	if worker {
-		disp := notify.New(d, cfg.Alerting)
+		disp = notify.New(d, cfg.Alerting)
 		w := scheduler.NewWorker(d, &scheduler.Recorder{DB: d, Notify: disp})
 		g.Go(func() error { return w.Run(ctx) })
 		g.Go(func() error { disp.Run(ctx); return nil })
@@ -165,6 +169,7 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 		public := http.NewServeMux()
 		path, h := publicv1connect.NewStatusServiceHandler(rpc.NewPublic(d, bus, cfg))
 		public.Handle(path, h)
+		public.Handle(push.Path, push.New(d, &scheduler.Recorder{DB: d, Notify: disp}))
 		serve(ctx, g, "public", cfg.Server.PublicPort, withCORS(rpc.WithSite(cfg, public), cfg.Server.CORSOrigins))
 
 		if cfg.Server.InternalJWTSecret == "" {

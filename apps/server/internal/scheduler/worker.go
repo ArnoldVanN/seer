@@ -174,6 +174,10 @@ func (w *Worker) stopAll() {
 // a per-key offset, so whichever worker owns the endpoint checks at the same
 // moments and the (endpoint, slot) unique key catches overlap during handoff.
 func (w *Worker) runEndpoint(ctx context.Context, endpointID int, spec *config.Endpoint) {
+	if spec.Type == "push" {
+		w.watchPush(ctx, endpointID, spec)
+		return
+	}
 	interval := spec.Interval.D().Milliseconds()
 	offset := cluster.Offset(spec.Key, interval)
 	slotOf := func(t time.Time) int64 { return (t.UnixMilli() - offset) / interval }
@@ -215,11 +219,6 @@ func (w *Worker) check(ctx context.Context, endpointID int, spec *config.Endpoin
 	if !stored {
 		return
 	}
-	up := 0.0
-	if out.Success {
-		up = 1
-	}
-	endpointUp.WithLabelValues(spec.Key, spec.Group).Set(up)
-	endpointResponse.WithLabelValues(spec.Key, spec.Group).Set(out.ResponseTime.Seconds())
+	observe(spec, out.Success, out.ResponseTime)
 	checksTotal.WithLabelValues(spec.Key, spec.Group, strconv.FormatBool(out.Success)).Inc()
 }

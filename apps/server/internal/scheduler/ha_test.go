@@ -12,6 +12,7 @@ import (
 
 	"github.com/seer-status/seer/apps/server/ent/endpoint"
 	"github.com/seer-status/seer/apps/server/ent/result"
+	"github.com/seer-status/seer/apps/server/internal/checker"
 	"github.com/seer-status/seer/apps/server/internal/config"
 	"github.com/seer-status/seer/apps/server/internal/db"
 	"github.com/seer-status/seer/apps/server/internal/jobs"
@@ -204,5 +205,89 @@ func TestHA(t *testing.T) {
 	}
 	if raw == 0 || raw != rolled {
 		t.Errorf("1d rollups count %d checks, results table has %d", rolled, raw)
+	}
+}
+
+// TestPushHA has two workers own the same silent push endpoint, as they can
+// during a handoff, and checks that each missed deadline is recorded once and
+// alerts once.
+func TestPushHA(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	d := testdb.New(t)
+	ctx := context.Background()
+
+	period := 1500 * time.Millisecond
+	spec := config.Endpoint{
+		Key: "cron", Name: "cron", Group: "g", Type: "push", Token: "0123456789abcdef",
+		Interval: config.Duration(time.Second), Grace: config.Duration(500 * time.Millisecond),
+		Timeout: config.Duration(time.Second), FailureThreshold: 1, SuccessThreshold: 1,
+		Alerts: []config.Alert{{Type: "test", FailureThreshold: 1, SuccessThreshold: 1}},
+	}
+	cfg := &config.Config{
+		Endpoints:  []config.Endpoint{spec},
+		Dashboards: []config.Dashboard{{Key: "default", Title: "x", Visibility: "public", Groups: []string{"g"}}},
+		Hash:       "test",
+	}
+	if err := jobs.SyncConfig(ctx, d, cfg, 0, "test"); err != nil {
+		t.Fatal(err)
+	}
+	ep, err := d.Ent.Endpoint.Query().Where(endpoint.Key("cron")).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// One ping, then silence.
+	rec := &recordingNotifier{events: map[string][]notify.Kind{}}
+	pinger := &Recorder{DB: d}
+	pingAt := time.Now()
+	if _, err := pinger.Record(ctx, ep.ID, &spec, pingAt.UnixMilli(), checker.Outcome{CheckedAt: pingAt, Success: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both run the watcher directly, so they overlap for the whole test.
+	var wg sync.WaitGroup
+	wctx, cancel := context.WithCancel(ctx)
+	for range 2 {
+		disp := notify.New(d, config.Alerting{})
+		disp.Register("test", rec)
+		pinger.Notify = disp // as in `seer all`; API-only replicas wait for the poll
+		w := NewWorker(d, &Recorder{DB: d, Notify: disp})
+		wg.Add(2)
+		go func() { defer wg.Done(); disp.Run(wctx) }()
+		go func() { defer wg.Done(); w.watchPush(wctx, ep.ID, &spec) }()
+	}
+	time.Sleep(4*period + 300*time.Millisecond)
+
+	// A ping brings it back.
+	now := time.Now()
+	if _, err := pinger.Record(ctx, ep.ID, &spec, now.UnixMilli(), checker.Outcome{CheckedAt: now, Success: true}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second) // let the dispatchers send the resolved alert
+	cancel()
+	wg.Wait()
+
+	missed, err := d.Ent.Result.Query().
+		Where(result.EndpointID(ep.ID), result.Success(false)).
+		Order(result.ByCheckedAt()).
+		All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missed) != 4 {
+		t.Errorf("got %d missed pings, want 4", len(missed))
+	}
+	for i, r := range missed {
+		if want := pingAt.Add(time.Duration(i+1) * period); r.CheckedAt.UnixMilli() != want.UnixMilli() {
+			t.Errorf("missed[%d] at %v, want %v", i, r.CheckedAt, want)
+		}
+		if r.Error != "no ping for 1.5s" {
+			t.Errorf("missed[%d] error %q", i, r.Error)
+		}
+	}
+	if got := rec.snapshot()["cron"]; len(got) != 2 || got[0] != notify.Triggered || got[1] != notify.Resolved {
+		t.Errorf("alerts %v, want one triggered then one resolved", got)
 	}
 }

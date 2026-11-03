@@ -165,7 +165,8 @@ type Endpoint struct {
 	// Shown under the name on dashboards and on the endpoint's page.
 	Description string `yaml:"description" json:"description,omitempty"`
 	Links       []Link `yaml:"links" json:"links,omitempty"`
-	// http, tcp, dns or icmp. Inferred from URL when empty.
+	// http, tcp, dns, icmp or push. Inferred from URL when empty, or push
+	// when there's a token and no URL.
 	Type     string   `yaml:"type" json:"type"`
 	URL      string   `yaml:"url" json:"url"`
 	Interval Duration `yaml:"interval" json:"interval"`
@@ -179,6 +180,12 @@ type Endpoint struct {
 	Insecure bool `yaml:"insecure" json:"insecure,omitempty"`
 
 	DNS *DNSQuery `yaml:"dns" json:"dns,omitempty"`
+
+	// Push endpoints only. Token authenticates pings; Interval is how often
+	// one is expected, and Grace how late it may be before the endpoint
+	// counts as failed.
+	Token string   `yaml:"token" json:"token,omitempty"`
+	Grace Duration `yaml:"grace" json:"grace,omitempty"`
 
 	Conditions []string `yaml:"conditions" json:"conditions"`
 
@@ -359,13 +366,20 @@ func (c *Config) applyDefaults() {
 			e.Name = e.Key
 		}
 		if e.Type == "" {
-			e.Type = inferType(e.URL)
+			if e.URL == "" && e.Token != "" {
+				e.Type = "push"
+			} else {
+				e.Type = inferType(e.URL)
+			}
 		}
 		if e.Interval == 0 {
 			e.Interval = Duration(60 * time.Second)
 		}
 		if e.Timeout == 0 {
 			e.Timeout = Duration(10 * time.Second)
+		}
+		if e.Type == "push" && e.Grace == 0 {
+			e.Grace = Duration(min(e.Interval.D()/2, 5*time.Minute))
 		}
 		if e.Method == "" && e.Type == "http" {
 			e.Method = "GET"
@@ -449,11 +463,21 @@ func (c *Config) validate() error {
 			errs = append(errs, fmt.Errorf("%s: duplicate key", where))
 		}
 		keys[e.Key] = true
-		if e.URL == "" {
-			errs = append(errs, fmt.Errorf("%s: url is required", where))
+		if e.Type == "push" {
+			errs = append(errs, e.validatePush(where)...)
+		} else {
+			if e.URL == "" {
+				errs = append(errs, fmt.Errorf("%s: url is required", where))
+			}
+			if len(e.Conditions) == 0 {
+				errs = append(errs, fmt.Errorf("%s: at least one condition is required", where))
+			}
+			if e.Token != "" {
+				errs = append(errs, fmt.Errorf("%s: token is only for push endpoints", where))
+			}
 		}
 		switch e.Type {
-		case "http", "tcp", "icmp":
+		case "http", "tcp", "icmp", "push":
 		case "dns":
 			if e.DNS == nil || e.DNS.Name == "" {
 				errs = append(errs, fmt.Errorf("%s: dns.name is required for dns endpoints", where))
@@ -463,9 +487,6 @@ func (c *Config) validate() error {
 		}
 		if e.Interval.D() < time.Second {
 			errs = append(errs, fmt.Errorf("%s: interval must be at least 1s", where))
-		}
-		if len(e.Conditions) == 0 {
-			errs = append(errs, fmt.Errorf("%s: at least one condition is required", where))
 		}
 		for _, a := range e.Alerts {
 			switch {
@@ -519,6 +540,26 @@ func (c *Config) validate() error {
 	}
 	errs = append(errs, c.validateSites(dkeys)...)
 	return errors.Join(errs...)
+}
+
+// MinPushToken keeps push tokens out of guessing range.
+const MinPushToken = 16
+
+func (e Endpoint) validatePush(where string) []error {
+	var errs []error
+	if len(e.Token) < MinPushToken {
+		errs = append(errs, fmt.Errorf("%s: push endpoints need a token of at least %d characters; generate one with `openssl rand -hex 16`", where, MinPushToken))
+	}
+	if e.URL != "" {
+		errs = append(errs, fmt.Errorf("%s: push endpoints have no url; they're pinged at /push/%s", where, e.Key))
+	}
+	if len(e.Conditions) > 0 {
+		errs = append(errs, fmt.Errorf("%s: push endpoints have no conditions; a ping reports up or down itself", where))
+	}
+	if e.Grace < 0 {
+		errs = append(errs, fmt.Errorf("%s: grace must not be negative", where))
+	}
+	return errs
 }
 
 func (a Alerting) validate() []error {

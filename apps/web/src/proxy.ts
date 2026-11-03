@@ -10,7 +10,7 @@ import { siteAccess } from "./lib/site-lookup"
 // Pages check the session themselves; this only redirects early when there's
 // no session cookie at all.
 
-const SHARED = ["/auth", "/rpc", "/private-rpc", "/custom.css", "/healthz", "/badge"]
+const SHARED = ["/auth", "/rpc", "/private-rpc", "/custom.css", "/healthz", "/badge", "/push"]
 
 // Any path no route matches, so Next renders the not-found page with a 404.
 const NOT_FOUND = "/_seer/not-found"

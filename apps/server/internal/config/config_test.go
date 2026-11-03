@@ -87,6 +87,49 @@ dashboards:
 	}
 }
 
+func TestPushEndpoints(t *testing.T) {
+	c, err := Parse([]byte(`
+endpoints:
+  - { key: backup, interval: 24h, token: 0123456789abcdef }
+  - { key: often, interval: 1m, token: 0123456789abcdef, grace: 10s }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := c.Endpoints[0]; e.Type != "push" || e.Grace.D() != 5*time.Minute {
+		t.Errorf("backup: type %q grace %v, want push and the 5m cap", e.Type, e.Grace.D())
+	}
+	if e := c.Endpoints[1]; e.Grace.D() != 10*time.Second {
+		t.Errorf("often: grace %v, want the configured 10s", e.Grace.D())
+	}
+	c, err = Parse([]byte(`
+endpoints:
+  - { key: fast, type: push, interval: 2m, token: 0123456789abcdef }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := c.Endpoints[0].Grace.D(); g != time.Minute {
+		t.Errorf("grace %v, want half the interval", g)
+	}
+
+	_, err = Parse([]byte(`
+endpoints:
+  - { key: short, type: push, token: abc }
+  - { key: urled, type: push, token: 0123456789abcdef, url: "https://x" }
+  - { key: conds, type: push, token: 0123456789abcdef, conditions: ["[STATUS] == 200"] }
+  - { key: http, url: "https://x", conditions: ["[STATUS] == 200"], token: 0123456789abcdef }
+`))
+	if err == nil {
+		t.Fatal("expected validation errors")
+	}
+	for _, want := range []string{"(short): push endpoints need a token", "(urled): push endpoints have no url", "(conds): push endpoints have no conditions", "(http): token is only for push"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q missing %q", err, want)
+		}
+	}
+}
+
 func TestAlerting(t *testing.T) {
 	c, err := Parse([]byte(`
 alerting:

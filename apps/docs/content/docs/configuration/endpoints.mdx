@@ -23,21 +23,22 @@ endpoints:
 | `group` | `""` | |
 | `description` | | Shown under the name on dashboards and on the endpoint's page. |
 | `links` | | `[{name, url}]`, shown as buttons on the endpoint's page, e.g. a runbook or the service itself. |
-| `type` | from URL | `http`, `tcp` (`tcp://host:port`), `dns` (`dns://server`), `icmp` (`icmp://host`). |
-| `url` | required | |
+| `type` | from URL | `http`, `tcp` (`tcp://host:port`), `dns` (`dns://server`), `icmp` (`icmp://host`), or `push` when there's a `token` and no URL. |
+| `url` | required | Not for push endpoints. |
 | `interval` | `60s` | |
 | `timeout` | `10s` | |
 | `method`, `headers`, `body` | `GET` | HTTP only. A `Host` header overrides the request host. |
 | `insecure` | `false` | Skip TLS verification. |
 | `dns` | | `{name, type}` for DNS checks; type defaults to `A`. |
-| `conditions` | required | All must pass. |
+| `conditions` | required | All must pass. Not for push endpoints. |
+| `token`, `grace` | | Push endpoints only; see [Push endpoints](/docs/push). |
 | `failureThreshold` | `1` | Consecutive failures before the status turns down. |
 | `successThreshold` | `1` | Consecutive successes before it turns up. |
 | `alerts` | | See [Alerts](#alerts). |
 
 ## Check types
 
-<Tabs items={['HTTP', 'TCP', 'DNS', 'ICMP']}>
+<Tabs items={['HTTP', 'TCP', 'DNS', 'ICMP', 'Push']}>
   <Tab value="HTTP">
     ```yaml
     - key: website
@@ -69,6 +70,16 @@ endpoints:
 
     ICMP uses unprivileged ping. In Kubernetes, set `worker.privilegedIcmp`
     if your nodes don't allow it.
+  </Tab>
+  <Tab value="Push">
+    ```yaml
+    - key: nightly-backup
+      interval: 24h
+      token: ${BACKUP_PUSH_TOKEN}
+    ```
+
+    Nothing is checked: the job pings Seer, and a missing ping counts as a
+    failure. See [Push endpoints](/docs/push).
   </Tab>
 </Tabs>
 

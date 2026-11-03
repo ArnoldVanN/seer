@@ -10,11 +10,12 @@
 Highly available, self-hosted status pages and uptime monitoring.
 
 **📖 Documentation: [seer.arnovannieuwenhuyzen.com/docs](https://seer.arnovannieuwenhuyzen.com/docs)**
+[![Docs status](https://status.arnovannieuwenhuyzen.com/badge/seer-arnovannieuwenhuyzen-com?label=docs)](https://status.arnovannieuwenhuyzen.com/e/seer-arnovannieuwenhuyzen-com)
 
-Seer checks your endpoints (HTTP, TCP, DNS, ICMP) and serves a public status
-page, plus private dashboards for your team. It's configured from one YAML
-file, like [Gatus](https://github.com/TwiN/gatus), but every replica is
-stateless, so you can run as many as you want:
+Seer checks your endpoints (HTTP, TCP, DNS, ICMP), accepts heartbeats, and serves a public status page,
+plus private dashboards for your team. It's configured from one YAML file, like
+[Gatus](https://github.com/TwiN/gatus), but every replica is stateless, so you
+can run as many as you want:
 
 - **Bring your own Postgres.** All state lives there; no SQLite, no local disk.
 - **Checks are sharded across workers.** Kill one and its endpoints move to
@@ -84,6 +85,7 @@ The [documentation](https://seer.arnovannieuwenhuyzen.com/docs) covers the rest:
 
 - [Configuration reference](https://seer.arnovannieuwenhuyzen.com/docs/configuration): every option
 - [Theming](https://seer.arnovannieuwenhuyzen.com/docs/theming): custom CSS variables and class names
+- [Push endpoints](https://seer.arnovannieuwenhuyzen.com/docs/push): monitor jobs and services that ping Seer instead of being checked
 - [Architecture](https://seer.arnovannieuwenhuyzen.com/docs/architecture): how sharding and HA work
 
 The docs site is built from `apps/docs`.
@@ -146,7 +148,6 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 
 - [ ] Maintenance windows
 - [ ] Announcements / incident notes on status pages
-- [ ] Push endpoints (heartbeats from cron jobs) and status badges
 - [ ] More checkers: SSH, STARTTLS, WebSocket, gRPC; HTTP client options (mTLS, proxy, DNS resolver)
 - [ ] TimescaleDB mode
 - [ ] MySQL support

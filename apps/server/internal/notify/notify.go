@@ -123,8 +123,13 @@ func New(d *db.DB, a config.Alerting) *Dispatcher {
 func (d *Dispatcher) Register(alertType string, n Notifier) { d.providers[alertType] = n }
 
 // Wake makes Run look for events now rather than at its next poll. Call it
-// after committing new ones.
+// after committing new ones. A nil Dispatcher (an API-only replica
+// recording pings) does nothing; a worker's Run picks them up on its next
+// poll.
 func (d *Dispatcher) Wake() {
+	if d == nil {
+		return
+	}
 	select {
 	case d.wake <- struct{}{}:
 	default:
