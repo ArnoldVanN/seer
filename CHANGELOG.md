@@ -1,5 +1,16 @@
 # Changelog
 
+## [seer v0.1.0] - 2026-11-03
+
+### ⚠ Breaking Changes
+
+- harden login redirects, public check errors, secrets and SMTP TLS (5a5ba88)
+
+### Features
+
+- keep sessions in Postgres (ff569a1)
+- **web:** add status and uptime SVG badges for public endpoints (b7003fa)
+
 ## [seer v0.0.6] - 2026-10-29
 
 ### Features
