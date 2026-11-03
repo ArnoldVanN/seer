@@ -151,5 +151,7 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] TimescaleDB mode
 - [ ] MySQL support
 - [ ] Config editor in the UI
+- [ ] Write API / DB-backed config, so sites, endpoints and alert targets can be created at runtime
+- [ ] Map an OIDC claim to groups, so `allowedGroups` can follow an identity provider's claim
 - [ ] Tests: OIDC against a real provider, Gateway API on kind, Playwright, scale
 - [ ] License and final module path

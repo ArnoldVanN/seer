@@ -111,6 +111,24 @@ async function cachedPublicEndpoint(site: string, key: string, range: Range) {
   }
 }
 
+// For badges: null instead of notFound(), since route handlers answer with an
+// image either way. Only public endpoints get badges.
+export async function getBadgeEndpoint(host: string, key: string, range: Range) {
+  return cachedBadgeEndpoint((await getSite(host)).key, key, range)
+}
+
+async function cachedBadgeEndpoint(site: string, key: string, range: Range) {
+  "use cache"
+  cacheLife(publicLife)
+  try {
+    const { endpoint } = await publicClient({ key: site }).getEndpointHistory({ key, historyRange: toRange(range) })
+    return toEndpoint(endpoint!)
+  } catch (err) {
+    if (err instanceof ConnectError && err.code === Code.NotFound) return null
+    throw err
+  }
+}
+
 // Private data depends on the viewer's groups, so it isn't cached.
 
 export async function listPrivateDashboards(viewer: Viewer) {

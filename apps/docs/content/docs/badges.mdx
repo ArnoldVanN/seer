@@ -1,0 +1,37 @@
+---
+title: Badges
+description: Embed an endpoint's status or uptime as an SVG badge.
+---
+
+Every endpoint on a public dashboard has two badges, served by the web app on
+each site's hostname:
+
+| Path | Shows |
+| --- | --- |
+| `/badge/<endpoint>` | Current status: `up`, `down` or `unknown`, labeled with the endpoint's name |
+| `/badge/<endpoint>/uptime` | Uptime over a range, e.g. `99.982%` |
+
+```md
+![API](https://status.example.com/badge/api)
+![API uptime](https://status.example.com/badge/api/uptime?range=30d)
+```
+
+### Options
+
+- `label` replaces the left-hand text, e.g. `?label=api`.
+- `range` (uptime only) is one of `24h`, `7d`, `30d`, `90d` or `1y`; the
+  default is `90d`, like an endpoint's page.
+
+Uptime is green from 99.9%, amber from 99% and red below that. With no checks
+in the range the badge says `no data`.
+
+### Visibility
+
+Badges only exist for endpoints on a public dashboard of the site they're
+requested from. Endpoints that are only on private dashboards, and every
+endpoint on a [private site](/docs/configuration/sites), answer with a grey
+`not found` badge and a 404, the same as a key that doesn't exist.
+
+Responses are cached for 30 seconds (`Cache-Control: public, max-age=30`), on
+top of the web app's 15-second cache of public data. Image proxies such as
+GitHub's camo may hold them longer.
