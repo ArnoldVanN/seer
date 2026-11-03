@@ -16,6 +16,18 @@ them from values; for `pnpm dev`, copy `apps/web/.env.example` to
 | `SEER_INTERNAL_JWT_SECRET` | Must match `server.internalJwtSecret`. Signs the short-lived tokens for the private API. |
 | `SEER_SESSION_SECRET` | Encrypts the session cookie. |
 
+### Weak secrets
+
+The web app won't start when `SEER_SESSION_SECRET` or
+`SEER_INTERNAL_JWT_SECRET` is shorter than 32 characters, or a plain
+`SEER_ADMIN_PASSWORD` is shorter than 12. The server checks
+`server.internalJwtSecret` the same way. Generate secrets with
+`openssl rand -base64 32`; the Helm chart generates its own.
+
+`SEER_ALLOW_WEAK_SECRETS=true` turns the check into a warning, on both the
+web app and the server. The dev setup and the compose demo set it; don't in
+production.
+
 ## HTTPS
 
 | Variable | |

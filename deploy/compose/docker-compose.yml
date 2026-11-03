@@ -4,12 +4,16 @@
 #   open http://localhost:3000            (public status page)
 #   open http://localhost:3000/internal   (admin / admin)
 #
+# Demo only: the secrets and password are weak (SEER_ALLOW_WEAK_SECRETS lets
+# them start) and the web app only listens on localhost.
+#
 # Kill a replica (docker compose kill seer --index 1 ... or docker kill) and
 # watch its endpoints move to the others within ~15s.
 
 x-seer-env: &seer-env
   SEER_DB_DSN: postgres://seer:seer@postgres:5432/seer?sslmode=disable
   SEER_INTERNAL_JWT_SECRET: ${SEER_INTERNAL_JWT_SECRET:-change-me-internal}
+  SEER_ALLOW_WEAK_SECRETS: ${SEER_ALLOW_WEAK_SECRETS:-true}
 
 services:
   postgres:
@@ -56,8 +60,9 @@ services:
       SEER_ADMIN_USERNAME: admin
       SEER_ADMIN_PASSWORD: ${SEER_ADMIN_PASSWORD:-admin}
       SEER_ADMIN_GROUPS: admin
+      SEER_ALLOW_WEAK_SECRETS: ${SEER_ALLOW_WEAK_SECRETS:-true}
     ports:
-      - "${SEER_WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${SEER_WEB_PORT:-3000}:3000"
     depends_on:
       - seer
 

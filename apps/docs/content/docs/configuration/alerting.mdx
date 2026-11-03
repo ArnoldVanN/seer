@@ -111,7 +111,8 @@ alerting:
 | Key | Default | |
 |---|---|---|
 | `host` | | Required. |
-| `port` | `587` | `465` connects with TLS; other ports switch to TLS with STARTTLS when the server offers it. |
+| `port` | `587` | `465` connects with TLS; other ports switch to TLS with STARTTLS. |
 | `username`, `password` | | Omit for servers without auth. The password is only sent over TLS (or to localhost). |
 | `from` | | Required. An address, optionally with a name. |
 | `to` | | Required. One or more addresses. |
+| `allowPlaintext` | `false` | Send without TLS when the server doesn't offer STARTTLS. Otherwise the alert fails, so nobody on the path can strip STARTTLS and read it. Not needed for `localhost`. |

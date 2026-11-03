@@ -211,9 +211,15 @@ func (m *email) Notify(ctx context.Context, ev Event) error {
 		return err
 	}
 	defer cl.Close()
-	if ok, _ := cl.Extension("STARTTLS"); ok && c.Port != 465 {
-		if err := cl.StartTLS(tlsCfg); err != nil {
-			return err
+	if c.Port != 465 {
+		if ok, _ := cl.Extension("STARTTLS"); ok {
+			if err := cl.StartTLS(tlsCfg); err != nil {
+				return err
+			}
+		} else if !c.AllowPlaintext && !isLocalhost(c.Host) {
+			// Otherwise anyone on the path could strip STARTTLS and read the
+			// alert.
+			return fmt.Errorf("%s doesn't offer STARTTLS; set allowPlaintext to send unencrypted", addr)
 		}
 	}
 	// PlainAuth refuses to send the password over an unencrypted connection
@@ -246,6 +252,12 @@ func (m *email) Notify(ctx context.Context, ev Event) error {
 		return err
 	}
 	return cl.Quit()
+}
+
+// isLocalhost matches what smtp.PlainAuth treats as local: a relay on the
+// same machine (or pod) needs no TLS.
+func isLocalhost(host string) bool {
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 func message(c config.Email, ev Event) []byte {

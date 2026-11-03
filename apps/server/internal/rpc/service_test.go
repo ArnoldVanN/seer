@@ -352,3 +352,20 @@ sites:
 		}
 	}
 }
+
+func TestPublicError(t *testing.T) {
+	for in, want := range map[string]string{
+		`Get "https://10.0.0.5/health?token=s3cret": dial tcp 10.0.0.5:443: connect: connection refused`:          "connection refused",
+		`Get "https://api.internal/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`: "timeout",
+		`dial tcp: lookup db.internal on 10.96.0.10:53: no such host`:                                             "DNS lookup failed",
+		`Get "https://x/": tls: failed to verify certificate: x509: certificate has expired`:                      "TLS certificate error",
+		`[BODY].status needs numbers, got "secret-value" and "1"`:                                                 "check failed",
+	} {
+		if got := publicError(in); got != want {
+			t.Errorf("publicError(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := (&Service{private: true}).resultError("raw"); got != "raw" {
+		t.Errorf("private port should keep the raw error, got %q", got)
+	}
+}

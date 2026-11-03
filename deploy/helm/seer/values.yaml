@@ -183,9 +183,10 @@ metrics:
     interval: 30s
     labels: {}
 
-# -- Only let web pods reach the private API port.
+# -- Only let web pods reach the private API port. The public API and metrics
+# ports stay open.
 networkPolicy:
-  enabled: false
+  enabled: true
 
 podSecurityContext:
   runAsNonRoot: true

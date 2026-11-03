@@ -38,8 +38,13 @@ the provider only admits assigned users (app assignments in Authentik,
 Keycloak, Entra, Okta), but **not** with a public provider like Google, where
 any account can authenticate. There, set `SEER_OIDC_ALLOWED_DOMAINS`.
 
-Sign-in checks happen only at login: removing someone from a group takes
-effect when their session expires.
+### Sessions
+
+A session lasts 8 hours, and holds the user's groups as they were at
+sign-in. Seer keeps no session list, so it can't revoke one: removing
+someone from a group, or from your provider, takes effect when their session
+expires. Signing out only clears the cookie in that browser. To end every
+session at once, change `SEER_SESSION_SECRET` and restart the web app.
 
 ## Admin account
 
@@ -52,7 +57,14 @@ A single local account for setups without an identity provider:
 | `SEER_ADMIN_PASSWORD_HASH` | Or a bcrypt hash instead, so the password itself is stored nowhere: `node -e "console.log(require('bcryptjs').hashSync('pw', 10))"`. In `.env` files escape each `$` as `\$`. |
 | `SEER_ADMIN_GROUPS` | Comma-separated groups. Default `admin`. |
 
-Set the password or the hash, not both: Seer won't start with both.
+Set the password or the hash, not both: Seer won't start with both. A plain
+password must be at least 12 characters (see
+[weak secrets](/docs/configuration/web#weak-secrets)).
+
+After 10 failed sign-ins from one address within 15 minutes, further attempts
+from it are refused until the window ends. The address is the last
+`X-Forwarded-For` entry, the one your proxy added. Each web replica counts on
+its own.
 
 In Helm these are `auth.admin.username`, `password` (or `passwordHash`) and
 `groups`. A `password` set in values ends up in the chart's secret, but also

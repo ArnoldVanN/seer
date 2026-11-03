@@ -82,8 +82,9 @@ the web app. Add an Ingress through `extraObjects` if you need one.
 routes it.
 
 <Callout type="warn">
-  Never route the private API port (8081) from outside the cluster. Set
-  `networkPolicy.enabled` to only let web pods reach it.
+  Never route the private API port (8081) from outside the cluster.
+  `networkPolicy.enabled` (on by default) only lets web pods reach it, on
+  clusters whose network plugin enforces NetworkPolicies.
 </Callout>
 
 ## Operations

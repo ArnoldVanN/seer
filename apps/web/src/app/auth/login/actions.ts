@@ -5,7 +5,8 @@ import { createHash, timingSafeEqual } from "node:crypto"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { env } from "@/lib/env"
-import { headerOrigin, safeNext } from "@/lib/origin"
+import { clearLoginFailures, loginBlocked, recordLoginFailure } from "@/lib/login-limit"
+import { clientAddress, headerOrigin, safeNext } from "@/lib/origin"
 import { sealSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
 
 // username is echoed back so the form keeps it: React resets a form after its
@@ -18,11 +19,19 @@ export async function adminLogin(_: LoginState, form: FormData): Promise<LoginSt
 
   const username = String(form.get("username") ?? "")
   const password = String(form.get("password") ?? "")
+  const h = await headers()
+  const client = clientAddress(h)
+  if (loginBlocked(client)) return { error: "Too many failed sign-ins. Try again later.", username }
+
   // Always check the password so a wrong username takes as long as a wrong one.
   const ok = await checkPassword(password, admin)
-  if (!ok || username !== admin.username) return { error: "Wrong username or password.", username }
+  if (!ok || username !== admin.username) {
+    recordLoginFailure(client)
+    return { error: "Wrong username or password.", username }
+  }
+  clearLoginFailures(client)
 
-  const secure = headerOrigin(await headers()).startsWith("https://")
+  const secure = headerOrigin(h).startsWith("https://")
   ;(await cookies()).set(
     SESSION_COOKIE,
     await sealSession({ sub: `admin:${admin.username}`, name: admin.username, groups: admin.groups }),

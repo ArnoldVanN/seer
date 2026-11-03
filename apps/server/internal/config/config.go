@@ -104,13 +104,14 @@ type Chat struct {
 
 type Email struct {
 	Host string `yaml:"host"`
-	// 465 uses implicit TLS; any other port upgrades with STARTTLS when the
-	// server offers it.
-	Port     int      `yaml:"port"`
-	Username string   `yaml:"username"`
-	Password string   `yaml:"password"`
-	From     string   `yaml:"from"`
-	To       []string `yaml:"to"`
+	// 465 uses implicit TLS; any other port upgrades with STARTTLS, which
+	// must be offered unless the host is local or AllowPlaintext is set.
+	Port           int      `yaml:"port"`
+	Username       string   `yaml:"username"`
+	Password       string   `yaml:"password"`
+	From           string   `yaml:"from"`
+	To             []string `yaml:"to"`
+	AllowPlaintext bool     `yaml:"allowPlaintext"`
 }
 
 // AlertTypes are the provider names an alert's type can take.

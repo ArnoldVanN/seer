@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -242,10 +243,44 @@ func (s *Service) GetEndpointHistory(ctx context.Context, req *connect.Request[c
 			CheckedAt:      timestamppb.New(r.CheckedAt),
 			Success:        r.Success,
 			ResponseTimeMs: r.ResponseTimeMs,
-			Error:          r.Error,
+			Error:          s.resultError(r.Error),
 		})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// resultError shows the public port only a category. Raw errors can carry
+// the target URL (and any token in its query), internal addresses and
+// values from the response body.
+func (s *Service) resultError(err string) string {
+	if s.private || err == "" {
+		return err
+	}
+	return publicError(err)
+}
+
+// publicErrors are matched in order against the lowercased error.
+var publicErrors = []struct{ match, category string }{
+	{"deadline exceeded", "timeout"},
+	{"timeout", "timeout"},
+	{"connection refused", "connection refused"},
+	{"connection reset", "connection reset"},
+	{"no such host", "DNS lookup failed"},
+	{"no route to host", "host unreachable"},
+	{"network is unreachable", "network unreachable"},
+	{"x509:", "TLS certificate error"},
+	{"tls:", "TLS error"},
+	{"eof", "connection closed"},
+}
+
+func publicError(err string) string {
+	lower := strings.ToLower(err)
+	for _, e := range publicErrors {
+		if strings.Contains(lower, e.match) {
+			return e.category
+		}
+	}
+	return "check failed"
 }
 
 func (s *Service) GetSiteConfig(ctx context.Context, _ *connect.Request[commonv1.GetSiteConfigRequest]) (*connect.Response[commonv1.GetSiteConfigResponse], error) {

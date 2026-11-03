@@ -168,6 +168,8 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 
 		if cfg.Server.InternalJWTSecret == "" {
 			log.Warn().Msg("server.internalJwtSecret is not set; private API disabled")
+		} else if err := checkSecret(cfg.Server.InternalJWTSecret); err != nil {
+			return err
 		} else {
 			private := http.NewServeMux()
 			path, h := privatev1connect.NewPrivateStatusServiceHandler(
@@ -212,6 +214,23 @@ func serve(ctx context.Context, g *errgroup.Group, name string, port int, h http
 		}
 		return nil
 	})
+}
+
+// minSecret matches the web app's check. Anyone with the secret can mint
+// tokens for any group, so a short one is refused unless
+// SEER_ALLOW_WEAK_SECRETS is set (development and demos).
+const minSecret = 32
+
+func checkSecret(secret string) error {
+	if len(secret) >= minSecret {
+		return nil
+	}
+	msg := fmt.Sprintf("server.internalJwtSecret is shorter than %d characters; generate one with `openssl rand -base64 32`", minSecret)
+	if envBool("SEER_ALLOW_WEAK_SECRETS", false) {
+		log.Warn().Msg(msg + " (allowed by SEER_ALLOW_WEAK_SECRETS)")
+		return nil
+	}
+	return errors.New(msg + ", or set SEER_ALLOW_WEAK_SECRETS=true (development only)")
 }
 
 func withCORS(h http.Handler, origins []string) http.Handler {
