@@ -7,7 +7,7 @@ import { redirect } from "next/navigation"
 import { env } from "@/lib/env"
 import { clearLoginFailures, loginBlocked, recordLoginFailure } from "@/lib/login-limit"
 import { clientAddress, headerOrigin, safeNext } from "@/lib/origin"
-import { sealSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
+import { createSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
 
 // username is echoed back so the form keeps it: React resets a form after its
 // action runs, and refills fields from their defaultValue.
@@ -34,7 +34,10 @@ export async function adminLogin(_: LoginState, form: FormData): Promise<LoginSt
   const secure = headerOrigin(h).startsWith("https://")
   ;(await cookies()).set(
     SESSION_COOKIE,
-    await sealSession({ sub: `admin:${admin.username}`, name: admin.username, groups: admin.groups }),
+    await createSession(
+      { sub: `admin:${admin.username}`, name: admin.username, username: admin.username, groups: admin.groups },
+      h,
+    ),
     sessionCookieOptions(secure),
   )
   redirect(safeNext(String(form.get("next") ?? "")))

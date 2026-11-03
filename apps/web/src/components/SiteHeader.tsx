@@ -8,7 +8,7 @@ const headerClass = "seer-header mx-auto flex max-w-page flex-wrap items-center 
 
 export async function SiteHeader() {
   await connection()
-  const [site, viewer] = await Promise.all([currentSite().catch(() => null), getViewer()])
+  const [site, viewer] = await Promise.all([currentSite().catch(() => null), getViewer().catch(() => null)])
   const brand = (
     <>
       {site?.logo && <Logo {...site.logo} />}

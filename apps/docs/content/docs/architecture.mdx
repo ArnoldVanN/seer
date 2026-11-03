@@ -21,9 +21,12 @@ keeps state; Postgres is the only shared thing.
   or `connection refused`), not the full message, which can include the
   checked URL and internal addresses. Private dashboards show the full
   message.
-- **8081 private:** the same API including private dashboards. Every call needs
-  a 60-second HS256 token that the web app signs with the shared secret after
-  checking the user's session. Never route it from outside the cluster.
+- **8081 private:** the same API including private dashboards, plus the
+  session service. Every call needs a 60-second HS256 token that the web app
+  signs with the shared secret. A viewer's token names their session, which
+  the API checks is still active and reads their groups from; the web app's
+  own token (audience `seer-web`) only opens the session service. Never route
+  it from outside the cluster.
 - **9090 ops:** health checks and Prometheus metrics.
 
 Visibility is decided in one place (`internal/rpc`): the web app has no
@@ -60,8 +63,9 @@ replica holds one `LISTEN` connection and pushes matching updates to its
 every worker. Streams send a heartbeat every 15s to keep proxies from closing
 them, and clients reconnect with backoff and refetch the page snapshot.
 
-Private dashboards stream through the web app (`/private-rpc`), which checks
-the session and adds the internal token.
+Private dashboards stream through the web app (`/private-rpc`), which adds an
+internal token naming the viewer's session. The API checks the session when
+the stream opens and every 30s after, and ends the stream once it's revoked.
 
 ## History and scale
 

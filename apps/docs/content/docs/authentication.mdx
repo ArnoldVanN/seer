@@ -3,9 +3,9 @@ title: Authentication
 description: Sign-in for private dashboards, with OIDC or a static admin account.
 ---
 
-Private dashboards need a sign-in. The web app handles it and keeps no user
-data: the session is an encrypted cookie, and users and groups come from your
-identity provider (or one static admin account). Configure either or both.
+Private dashboards need a sign-in. The web app handles it; users and groups
+come from your identity provider (or one static admin account), and sessions
+are kept in Postgres. Configure either or both.
 
 ## OIDC
 
@@ -40,11 +40,17 @@ any account can authenticate. There, set `SEER_OIDC_ALLOWED_DOMAINS`.
 
 ### Sessions
 
-A session lasts 8 hours, and holds the user's groups as they were at
-sign-in. Seer keeps no session list, so it can't revoke one: removing
-someone from a group, or from your provider, takes effect when their session
-expires. Signing out only clears the cookie in that browser. To end every
-session at once, change `SEER_SESSION_SECRET` and restart the web app.
+A session lasts 8 hours and is stored in Postgres; the browser's cookie only
+holds its ID, and the database only that ID's hash. Signing out ends the
+session on the server, so a copied cookie stops working too.
+
+A session keeps the groups the user had at sign-in. Removing someone from a
+group in your provider takes effect at their next sign-in.
+
+<Callout>
+  Managing users from the UI, such as signing someone out everywhere or
+  blocking them, is coming soon.
+</Callout>
 
 ## Admin account
 

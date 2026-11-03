@@ -3,9 +3,12 @@ import { createClient, type Interceptor } from "@connectrpc/connect"
 import { createConnectTransport } from "@connectrpc/connect-node"
 import { StatusService } from "@seer/protos/public"
 import { PrivateStatusService } from "@seer/protos/private"
+import { SessionService } from "@seer/protos/sessions"
 import { env } from "./env"
-import { mintInternalToken } from "./token"
-import type { Viewer } from "./session"
+import { mintInternalToken, mintWebToken } from "./token"
+
+// The viewer's session ID, which is all private calls need.
+type Viewer = { sid: string }
 
 // Without a deadline a stalled API would hang page renders.
 const TIMEOUT_MS = 10_000
@@ -37,7 +40,7 @@ export function publicClient(site: SiteRef) {
 
 export function privateClient(viewer: Viewer, site: SiteRef) {
   const auth: Interceptor = (next) => async (req) => {
-    req.header.set("Authorization", `Bearer ${await mintInternalToken(viewer)}`)
+    req.header.set("Authorization", `Bearer ${await mintInternalToken(viewer.sid)}`)
     return next(req)
   }
   return createClient(
@@ -48,6 +51,24 @@ export function privateClient(viewer: Viewer, site: SiteRef) {
       useHttpGet: true,
       defaultTimeoutMs: TIMEOUT_MS,
       interceptors: [auth, siteHeaders(site)],
+    }),
+  )
+}
+
+// The web app's own session calls. POST only, so session IDs stay out of
+// URLs and access logs.
+export function sessionClient() {
+  const auth: Interceptor = (next) => async (req) => {
+    req.header.set("Authorization", `Bearer ${await mintWebToken()}`)
+    return next(req)
+  }
+  return createClient(
+    SessionService,
+    createConnectTransport({
+      baseUrl: env.privateApiUrl(),
+      httpVersion: "1.1",
+      defaultTimeoutMs: TIMEOUT_MS,
+      interceptors: [auth],
     }),
   )
 }

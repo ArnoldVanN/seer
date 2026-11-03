@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 import { env } from "@/lib/env"
 import { passthrough } from "@/lib/passthrough"
-import { openSession, SESSION_COOKIE } from "@/lib/session"
+import { SESSION_COOKIE, sessionId } from "@/lib/session"
 import { mintInternalToken } from "@/lib/token"
 import { sameOrigin } from "@/lib/origin"
 
@@ -17,11 +17,12 @@ async function handle(req: NextRequest, ctx: RouteContext<"/private-rpc/[...path
 
   if (!sameOrigin(req)) return new Response("Forbidden", { status: 403 })
 
-  const viewer = await openSession(req.cookies.get(SESSION_COOKIE)?.value)
-  if (!viewer) return new Response("Unauthenticated", { status: 401 })
+  // The API checks the session itself, and ends the stream once it's revoked.
+  const sid = await sessionId(req.cookies.get(SESSION_COOKIE)?.value)
+  if (!sid) return new Response("Unauthenticated", { status: 401 })
 
   return passthrough(req, `${env.privateApiUrl()}/${method}`, {
-    authorization: `Bearer ${await mintInternalToken(viewer)}`,
+    authorization: `Bearer ${await mintInternalToken(sid)}`,
   })
 }
 

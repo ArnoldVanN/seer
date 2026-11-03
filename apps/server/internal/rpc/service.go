@@ -22,16 +22,19 @@ import (
 	"github.com/seer-status/seer/apps/server/internal/config"
 	"github.com/seer-status/seer/apps/server/internal/db"
 	"github.com/seer-status/seer/apps/server/internal/events"
+	"github.com/seer-status/seer/apps/server/internal/session"
 	commonv1 "github.com/seer-status/seer/packages/protos/gen/go/seer/common/v1"
 	"github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 	"github.com/seer-status/seer/packages/protos/gen/go/seer/public/v1/publicv1connect"
 )
 
 type Service struct {
-	DB      *db.DB
-	Bus     *events.Bus
-	Config  *config.Config
-	private bool
+	DB     *db.DB
+	Bus    *events.Bus
+	Config *config.Config
+	// Private port only: open streams check their session again on refresh.
+	Sessions *session.Store
+	private  bool
 }
 
 var (
@@ -43,8 +46,8 @@ func NewPublic(d *db.DB, bus *events.Bus, cfg *config.Config) *Service {
 	return &Service{DB: d, Bus: bus, Config: cfg}
 }
 
-func NewPrivate(d *db.DB, bus *events.Bus, cfg *config.Config) *Service {
-	return &Service{DB: d, Bus: bus, Config: cfg, private: true}
+func NewPrivate(d *db.DB, bus *events.Bus, cfg *config.Config, sessions *session.Store) *Service {
+	return &Service{DB: d, Bus: bus, Config: cfg, Sessions: sessions, private: true}
 }
 
 var errNotFound = connect.NewError(connect.CodeNotFound, errors.New("not found"))
@@ -361,8 +364,11 @@ func (s *Service) WatchStatus(ctx context.Context, req *connect.Request[commonv1
 				return err
 			}
 		case <-refresh.C:
-			// Picks up config changes, and ends the stream if the dashboard
-			// was removed or the caller lost access.
+			// Picks up config changes, and ends the stream if the session
+			// ended, the dashboard was removed or the caller lost access.
+			if err := s.sessionActive(ctx); err != nil {
+				return err
+			}
 			if keys, err = keysOf(); err != nil {
 				return err
 			}
@@ -383,6 +389,20 @@ func (s *Service) WatchStatus(ctx context.Context, req *connect.Request[commonv1
 			}
 		}
 	}
+}
+
+// sessionActive checks a private caller's session again: the interceptor only
+// checks it when a stream opens.
+func (s *Service) sessionActive(ctx context.Context) error {
+	v, ok := auth.FromContext(ctx)
+	if !s.private || !ok {
+		return nil
+	}
+	_, err := s.Sessions.Active(ctx, v.SessionID)
+	if errors.Is(err, session.ErrInvalid) {
+		return connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	return err
 }
 
 func heartbeatEvent() *commonv1.StatusEvent {

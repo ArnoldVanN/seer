@@ -15,6 +15,7 @@ import (
 	"github.com/seer-status/seer/apps/server/internal/config"
 	"github.com/seer-status/seer/apps/server/internal/events"
 	"github.com/seer-status/seer/apps/server/internal/jobs"
+	"github.com/seer-status/seer/apps/server/internal/session"
 	"github.com/seer-status/seer/apps/server/internal/testdb"
 	commonv1 "github.com/seer-status/seer/packages/protos/gen/go/seer/common/v1"
 	"github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
@@ -49,8 +50,9 @@ dashboards:
 	defer pub.Close()
 
 	privMux := http.NewServeMux()
-	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, bus, cfg),
-		connect.WithInterceptors(auth.NewInterceptor(secret))))
+	sessions := session.New(d)
+	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, bus, cfg, sessions),
+		connect.WithInterceptors(auth.NewInterceptor(secret, sessions))))
 	priv := httptest.NewServer(privMux)
 	defer priv.Close()
 
@@ -104,10 +106,7 @@ dashboards:
 	privClient := func(groups ...string) privatev1connect.PrivateStatusServiceClient {
 		var opts []connect.ClientOption
 		if groups != nil {
-			tok, err := auth.Mint(secret, "alice", groups, time.Minute)
-			if err != nil {
-				t.Fatal(err)
-			}
+			tok := viewerToken(t, sessions, groups)
 			opts = append(opts, connect.WithInterceptors(connect.UnaryInterceptorFunc(
 				func(next connect.UnaryFunc) connect.UnaryFunc {
 					return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -260,8 +259,9 @@ dashboards:
 		t.Errorf("public admin site lists %v, want nothing", got)
 	}
 	privMux := http.NewServeMux()
-	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), cfg),
-		connect.WithInterceptors(auth.NewInterceptor(secret))))
+	sessions := session.New(d)
+	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), cfg, sessions),
+		connect.WithInterceptors(auth.NewInterceptor(secret, sessions))))
 	priv := httptest.NewServer(WithSite(cfg, privMux))
 	defer priv.Close()
 	for _, c := range []struct {
@@ -271,10 +271,7 @@ dashboards:
 		{[]string{"admin"}, []string{"home", "acme", "acme-ops"}},
 		{[]string{"dev"}, nil},
 	} {
-		tok, err := auth.Mint(secret, "alice", c.groups, time.Minute)
-		if err != nil {
-			t.Fatal(err)
-		}
+		tok := viewerToken(t, sessions, c.groups)
 		pc := privatev1connect.NewPrivateStatusServiceClient(http.DefaultClient, priv.URL,
 			connect.WithInterceptors(connect.UnaryInterceptorFunc(
 				func(next connect.UnaryFunc) connect.UnaryFunc {
@@ -351,6 +348,20 @@ sites:
 			t.Errorf("%s/%s shows %v, want [%s]", c.site, c.dash, got, c.want)
 		}
 	}
+}
+
+// viewerToken starts a session for alice with groups and mints a token for it.
+func viewerToken(t *testing.T, sessions *session.Store, groups []string) string {
+	t.Helper()
+	id, _, err := sessions.Create(context.Background(), session.User{Subject: "alice", Name: "Alice", Groups: groups}, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := auth.Mint(secret, id, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tok
 }
 
 func TestPublicError(t *testing.T) {

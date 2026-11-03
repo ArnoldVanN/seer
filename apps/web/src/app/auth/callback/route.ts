@@ -3,7 +3,7 @@ import * as client from "openid-client"
 import { env } from "@/lib/env"
 import { oidcAllowed, oidcConfig, OIDC_FLOW_COOKIE } from "@/lib/oidc"
 import { requestOrigin, safeNext } from "@/lib/origin"
-import { sealSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
+import { createSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session"
 
 export async function GET(req: NextRequest) {
   // Request-time only; without this Cache Components prerenders the handler.
@@ -53,7 +53,17 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.redirect(new URL(safeNext(flow.next), origin))
   res.cookies.set(
     SESSION_COOKIE,
-    await sealSession({ sub: `oidc:${claims.sub}`, name, groups }),
+    await createSession(
+      {
+        sub: `oidc:${claims.sub}`,
+        name,
+        groups,
+        // Unverified emails could be any address, so they'd only mislead.
+        email: claims.email_verified === true && typeof claims.email === "string" ? claims.email : undefined,
+        username: typeof claims.preferred_username === "string" ? claims.preferred_username : undefined,
+      },
+      req.headers,
+    ),
     sessionCookieOptions(origin.startsWith("https://")),
   )
   res.cookies.delete({ name: OIDC_FLOW_COOKIE, path: "/auth" })

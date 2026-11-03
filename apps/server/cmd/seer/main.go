@@ -35,6 +35,7 @@ import (
 	"github.com/seer-status/seer/apps/server/internal/notify"
 	"github.com/seer-status/seer/apps/server/internal/rpc"
 	"github.com/seer-status/seer/apps/server/internal/scheduler"
+	"github.com/seer-status/seer/apps/server/internal/session"
 	"github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 	"github.com/seer-status/seer/packages/protos/gen/go/seer/public/v1/publicv1connect"
 )
@@ -171,12 +172,17 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 		} else if err := checkSecret(cfg.Server.InternalJWTSecret); err != nil {
 			return err
 		} else {
+			secret := cfg.Server.InternalJWTSecret
+			sessions := session.New(d)
 			private := http.NewServeMux()
-			path, h := privatev1connect.NewPrivateStatusServiceHandler(
-				rpc.NewPrivate(d, bus, cfg),
-				connect.WithInterceptors(auth.NewInterceptor(cfg.Server.InternalJWTSecret)),
-			)
-			private.Handle(path, h)
+			private.Handle(privatev1connect.NewPrivateStatusServiceHandler(
+				rpc.NewPrivate(d, bus, cfg, sessions),
+				connect.WithInterceptors(auth.NewInterceptor(secret, sessions)),
+			))
+			private.Handle(privatev1connect.NewSessionServiceHandler(
+				&rpc.Sessions{Store: sessions},
+				connect.WithInterceptors(auth.NewWebInterceptor(secret)),
+			))
 			serve(ctx, g, "private", cfg.Server.PrivatePort, rpc.WithSite(cfg, private))
 		}
 	}

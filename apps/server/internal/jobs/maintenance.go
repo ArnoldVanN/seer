@@ -119,6 +119,10 @@ func Retention(ctx context.Context, d *db.DB, r config.Retention, liveTimeout ti
 	if n, _ := res.RowsAffected(); n > 0 {
 		log.Warn().Int64("rows", n).Msg("dropped notifications no replica could send")
 	}
+	// Expired sessions, revoked or not: they can't be used anymore.
+	if _, err := d.SQL.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, now); err != nil {
+		return fmt.Errorf("sessions: %w", err)
+	}
 	// Rows of workers that died without deregistering.
 	_, err = d.SQL.ExecContext(ctx, `DELETE FROM workers WHERE last_heartbeat < $1`, now.Add(-10*liveTimeout))
 	return err

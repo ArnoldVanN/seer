@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package seer.private.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Signed-in viewers' sessions, kept in Postgres so they can be revoked.
+// Served on the internal port to the web app itself, behind an internal JWT
+// with the "seer-web" audience. None of these use GET: session IDs must not
+// end up in URLs or access logs.
+service SessionService {
+  // Starts a session for a viewer the web app has signed in.
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  // Looks up an active session; NOT_FOUND once it's expired or revoked.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  // Ends a session (sign-out). Revoking an unknown session is not an error.
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+}
+
+message Session {
+  string subject = 1;
+  string name = 2;
+  repeated string groups = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message CreateSessionRequest {
+  string subject = 1;
+  string name = 2;
+  repeated string groups = 3;
+  // Recorded to tell sessions apart later.
+  string user_agent = 4;
+  string ip = 5;
+  // Who the session belongs to, when known. Only verified emails.
+  string email = 6;
+  string username = 7;
+}
+
+message CreateSessionResponse {
+  // The secret the cookie holds. Only its hash is stored.
+  string id = 1;
+  Session session = 2;
+}
+
+message GetSessionRequest {
+  string id = 1;
+}
+
+message GetSessionResponse {
+  Session session = 1;
+}
+
+message RevokeSessionRequest {
+  string id = 1;
+}
+
+message RevokeSessionResponse {}

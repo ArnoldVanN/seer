@@ -1,6 +1,6 @@
 "use client"
 
-import { createClient } from "@connectrpc/connect"
+import { Code, ConnectError, createClient } from "@connectrpc/connect"
 import { createConnectTransport } from "@connectrpc/connect-web"
 import { timestampDate } from "@bufbuild/protobuf/wkt"
 import { StatusService } from "@seer/protos/public"
@@ -176,8 +176,14 @@ export function LiveDashboard({ initial, scope, linkBase, range }: Props) {
               }),
             )
           }
-        } catch {
+        } catch (err) {
           if (abort.signal.aborted) return
+          // The session ended (signed out or revoked): re-render, which sends
+          // the viewer to sign in, instead of retrying forever.
+          if (ConnectError.from(err).code === Code.Unauthenticated) {
+            router.refresh()
+            return
+          }
         }
         setLive(false)
         first = false
