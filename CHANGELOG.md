@@ -1,5 +1,11 @@
 # Changelog
 
+## [seer v0.1.1] - 2026-11-03
+
+### Features
+
+- push endpoint (0d498b7)
+
 ## [seer v0.1.0] - 2026-11-03
 
 ### ⚠ Breaking Changes
