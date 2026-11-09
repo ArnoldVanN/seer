@@ -1,5 +1,18 @@
 # Changelog
 
+## [seer v0.1.2] - 2026-11-09
+
+### Features
+
+- custom domain check (9398687)
+- per-site alert targets through the admin API (56f6a77)
+- admin API and DB-backed sites, dashboards and endpoints (e4d8814)
+- add apache 2.0 license (03b3a4a)
+
+### Other
+
+- rename module path (3a98375)
+
 ## [seer v0.1.1] - 2026-11-03
 
 ### Features
