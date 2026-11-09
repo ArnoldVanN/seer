@@ -93,6 +93,25 @@ redirect URI to register for everyone who uses it.
 The same works for private dashboards on a hostname of their own: a private
 site with just those dashboards.
 
+## Custom domains
+
+To serve a site on someone else's domain, they CNAME it to you and you list
+it in the site's `hosts`. Seer only routes by hostname, so whatever
+terminates TLS in front of it needs a certificate for that domain:
+
+- **On-demand TLS (Caddy):** the proxy gets a certificate on the first
+  request. Point its `ask` at Seer, which answers 200 only for hostnames a
+  site lists: `ask http://seer-metrics:9090/tls/ask` (ops port, `?domain=`
+  added by Caddy).
+- **A CDN's custom hostnames:** register the domain with your CDN or edge
+  provider, which checks ownership, issues the certificate and forwards
+  traffic to Seer.
+- **cert-manager:** create a `Certificate` and a Gateway listener for each
+  domain when you add it to a site.
+
+Seer doesn't check who owns a domain. Before putting a customer's domain on
+a site, have them prove it, unless your CDN already does.
+
 ## Things to know
 
 - **Sign-in is per hostname.** The session cookie belongs to the host, so each
@@ -104,4 +123,5 @@ site with just those dashboards.
   public on every site. For tenants that must not see each other at all, run
   separate deployments.
 - **Kubernetes:** the chart's HTTPRoute takes its hostnames from every site's
-  `hosts` unless `httpRoute.hostnames` is set.
+  `hosts` in the config file unless `httpRoute.hostnames` is set. Hostnames
+  added through the admin API aren't on it.

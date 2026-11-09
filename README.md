@@ -154,7 +154,6 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] MySQL support
 - [ ] Config editor in the UI: edits are API-owned rows like the write API's, with YAML export and optionally a PR to a GitOps repo
 - [ ] Multiple config files or a config directory, merged into one config
-- [ ] Custom domain check: an endpoint a TLS front end (Caddy `ask`, cert-manager) can query to confirm a hostname belongs to a site
 - [ ] Map an OIDC claim to groups, so `allowedGroups` can follow an identity provider's claim
 - [ ] Keep session groups current: refresh them with the provider's refresh token, and end sessions on OIDC back-channel logout
 - [ ] User management in the UI: who has signed in and when, force sign-out, block users

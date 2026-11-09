@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"slices"
 	"sync"
 	"time"
@@ -78,6 +79,47 @@ func (s *Store) ByKey(ctx context.Context, key string) (*Site, error) {
 		return nil, err
 	}
 	return snap.byKey[key], nil
+}
+
+// HasHost reports whether a site lists host. Unlike ForHost, an unknown host
+// doesn't count.
+func (s *Store) HasHost(ctx context.Context, host string) (bool, error) {
+	snap, err := s.get(ctx)
+	if err != nil {
+		return false, err
+	}
+	_, ok := snap.byHost[config.NormalizeHost(host)]
+	return ok, nil
+}
+
+// AskHandler answers whether a TLS front end may get a certificate for a
+// hostname: 200 if a site lists it, 404 if not. It follows Caddy's on-demand
+// TLS "ask" contract, GET with ?domain=. A host added through the admin API
+// can take up to DefaultTTL to be allowed on every replica.
+func (s *Store) AskHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		domain := r.URL.Query().Get("domain")
+		if domain == "" {
+			http.Error(w, "domain is required", http.StatusBadRequest)
+			return
+		}
+		ok, err := s.HasHost(r.Context(), domain)
+		if err != nil {
+			log.Error().Err(err).Msg("tls ask: load sites")
+			http.Error(w, "site lookup failed", http.StatusServiceUnavailable)
+			return
+		}
+		if !ok {
+			http.Error(w, "no site has this host", http.StatusNotFound)
+			return
+		}
+		w.Write([]byte("ok")) //nolint:errcheck
+	})
 }
 
 // Default returns the site unknown hosts get.

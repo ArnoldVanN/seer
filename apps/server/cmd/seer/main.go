@@ -149,6 +149,8 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 		w.Write([]byte("ok"))
 	})
 	ops.Handle("/metrics", promhttp.Handler())
+	siteStore := sites.New(d, cfg.UI)
+	ops.Handle("/tls/ask", siteStore.AskHandler())
 	serve(ctx, g, "ops", cfg.Server.OpsPort, ops)
 
 	// Nil on an API-only replica: pings recorded there are queued for the
@@ -168,7 +170,6 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 	if api {
 		bus := events.NewBus(d.DSN)
 		g.Go(func() error { bus.Run(ctx); return nil })
-		siteStore := sites.New(d, cfg.UI)
 
 		public := http.NewServeMux()
 		path, h := publicv1connect.NewStatusServiceHandler(rpc.NewPublic(d, bus, siteStore))

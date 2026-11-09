@@ -2,6 +2,8 @@ package sites
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/ArnoldVanN/seer/apps/server/ent/dashboard"
@@ -73,6 +75,24 @@ sites:
 	}
 	if s := get("admin.test"); len(s.Dashboards) != 3 {
 		t.Errorf(`"*" site lists %v, want every dashboard including the API's`, s.Dashboards)
+	}
+
+	ask := st.AskHandler()
+	for _, tc := range []struct {
+		method, target string
+		want           int
+	}{
+		{"GET", "/tls/ask?domain=status.example.com", http.StatusOK},
+		{"GET", "/tls/ask?domain=STATUS.GAME.TEST", http.StatusOK}, // API site
+		{"GET", "/tls/ask?domain=elsewhere.test", http.StatusNotFound},
+		{"GET", "/tls/ask", http.StatusBadRequest},
+		{"POST", "/tls/ask?domain=status.example.com", http.StatusMethodNotAllowed},
+	} {
+		rec := httptest.NewRecorder()
+		ask.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.target, nil))
+		if rec.Code != tc.want {
+			t.Errorf("%s %s = %d, want %d", tc.method, tc.target, rec.Code, tc.want)
+		}
 	}
 
 	// Without sites in the config, the implicit default site lists the
