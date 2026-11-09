@@ -157,4 +157,7 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] Keep session groups current: refresh them with the provider's refresh token, and end sessions on OIDC back-channel logout
 - [ ] User management in the UI: who has signed in and when, force sign-out, block users
 - [ ] Tests: OIDC against a real provider, Gateway API on kind, Playwright, scale
-- [ ] License and final module path
+
+## License
+
+[Apache License 2.0](LICENSE)
