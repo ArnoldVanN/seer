@@ -41,7 +41,8 @@ Durations take Go units plus `d`, `w` and `y` (365 days).
 | `privatePort` | `8081` | Private API. Keep it inside the cluster. |
 | `opsPort` | `9090` | `/healthz`, `/readyz`, `/metrics`. |
 | `corsOrigins` | any | Origins allowed to call the public API from browsers. |
-| `internalJwtSecret` | `$SEER_INTERNAL_JWT_SECRET` | Shared with the web app. The private port is off without it. |
+| `internalJwtSecret` | `$SEER_INTERNAL_JWT_SECRET` | Shared with the web app. Private dashboards are off without it. |
+| `adminApiKeys` | `$SEER_ADMIN_API_KEY` | Bearer keys for the [admin API](/docs/admin-api), at least 32 characters. Off when empty. |
 
 ## ui
 

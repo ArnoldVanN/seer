@@ -15,11 +15,14 @@ spec:
     - ports:
         - { port: 8080 }
         - { port: 9090 }
-    # Private API: web pods only.
+    # Private API: web pods, and admin API callers.
     - from:
         - podSelector:
             matchLabels:
               {{- include "seer.selector" (dict "root" . "component" "web") | nindent 14 }}
+        {{- with .Values.adminApi.allowFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       ports:
         - { port: 8081 }
 {{- end }}

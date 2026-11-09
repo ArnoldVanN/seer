@@ -16,6 +16,7 @@ import (
 	"github.com/ArnoldVanN/seer/apps/server/internal/events"
 	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
 	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/sites"
 	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 	commonv1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/common/v1"
 	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
@@ -45,13 +46,13 @@ dashboards:
 	bus := events.NewBus(d.DSN)
 
 	pubMux := http.NewServeMux()
-	pubMux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, bus, cfg)))
+	pubMux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, bus, sites.New(d, cfg.UI))))
 	pub := httptest.NewServer(pubMux)
 	defer pub.Close()
 
 	privMux := http.NewServeMux()
 	sessions := session.New(d)
-	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, bus, cfg, sessions),
+	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, bus, sites.New(d, cfg.UI), sessions),
 		connect.WithInterceptors(auth.NewInterceptor(secret, sessions))))
 	priv := httptest.NewServer(privMux)
 	defer priv.Close()
@@ -185,8 +186,8 @@ dashboards:
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), cfg)))
-	srv := httptest.NewServer(WithSite(cfg, mux))
+	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), sites.New(d, cfg.UI))))
+	srv := httptest.NewServer(WithSite(sites.New(d, cfg.UI), mux))
 	defer srv.Close()
 
 	client := func(header, value string) publicv1connect.StatusServiceClient {
@@ -260,9 +261,9 @@ dashboards:
 	}
 	privMux := http.NewServeMux()
 	sessions := session.New(d)
-	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), cfg, sessions),
+	privMux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), sites.New(d, cfg.UI), sessions),
 		connect.WithInterceptors(auth.NewInterceptor(secret, sessions))))
-	priv := httptest.NewServer(WithSite(cfg, privMux))
+	priv := httptest.NewServer(WithSite(sites.New(d, cfg.UI), privMux))
 	defer priv.Close()
 	for _, c := range []struct {
 		groups []string
@@ -312,8 +313,8 @@ sites:
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), cfg)))
-	srv := httptest.NewServer(WithSite(cfg, mux))
+	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), sites.New(d, cfg.UI))))
+	srv := httptest.NewServer(WithSite(sites.New(d, cfg.UI), mux))
 	defer srv.Close()
 
 	endpointsOn := func(site, dash string) []string {

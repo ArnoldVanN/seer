@@ -14,6 +14,7 @@ import (
 	"github.com/ArnoldVanN/seer/apps/server/internal/events"
 	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
 	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/sites"
 	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 	commonv1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/common/v1"
 	privatev1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1"
@@ -47,7 +48,7 @@ dashboards:
 	}
 	sessions := session.New(d)
 	mux := http.NewServeMux()
-	mux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), cfg, sessions),
+	mux.Handle(privatev1connect.NewPrivateStatusServiceHandler(NewPrivate(d, events.NewBus(d.DSN), sites.New(d, cfg.UI), sessions),
 		connect.WithInterceptors(auth.NewInterceptor(secret, sessions))))
 	mux.Handle(privatev1connect.NewSessionServiceHandler(&Sessions{Store: sessions},
 		connect.WithInterceptors(auth.NewWebInterceptor(secret))))

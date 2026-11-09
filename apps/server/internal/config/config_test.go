@@ -177,15 +177,18 @@ sites:
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := c.SiteForHost("status.example.com:443")
-	if s.Key != "second" || s.UI.Title != "Second" || s.UI.HomeURL != "https://base" || len(s.UI.FooterLinks) != 1 {
-		t.Errorf("SiteForHost = %+v, want second with merged ui", s)
+	s := c.SiteByKey("second")
+	if !slices.Equal(s.Hosts, []string{"status.example.com"}) {
+		t.Errorf("hosts = %v, want normalized", s.Hosts)
+	}
+	if s.UI.Title != "Second" || s.UI.HomeURL != "https://base" || len(s.UI.FooterLinks) != 1 {
+		t.Errorf("ui = %+v, want merged over the top level", s.UI)
+	}
+	if s.OwnUI.Title != "Second" || s.OwnUI.HomeURL != "" {
+		t.Errorf("own ui = %+v, want the site's overrides only", s.OwnUI)
 	}
 	if *s.UI.HidePoweredBy || !*c.SiteByKey("first").UI.HidePoweredBy {
 		t.Error("a site's hidePoweredBy should override the top level's")
-	}
-	if c.SiteForHost("elsewhere").Key != "first" {
-		t.Error("unknown host should get the first site")
 	}
 
 	all, err := Parse([]byte(eps + `
@@ -195,8 +198,8 @@ sites: [{ key: a, dashboards: [one] }, { key: admin, hosts: [x], dashboards: ["*
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := all.SiteByKey("admin").Dashboards; len(got) != 2 {
-		t.Errorf(`"*" expanded to %v, want both dashboards`, got)
+	if got := all.SiteByKey("admin"); len(got.Dashboards) != 2 || !got.AllDashboards {
+		t.Errorf(`"*" expanded to %v (all %v), want both dashboards`, got.Dashboards, got.AllDashboards)
 	}
 
 	implicit, err := Parse([]byte(eps))
@@ -303,21 +306,19 @@ sites:
 	if got := c.SiteByKey("home").Dashboards; !slices.Equal(got, []string{"home", "infra"}) {
 		t.Errorf("home dashboards = %v", got)
 	}
-	shows := func(d, e string) bool { return c.Shows(c.DashboardByKey(d), c.EndpointByKey(e)) }
-	for _, tc := range []struct {
-		dash, ep string
-		want     bool
-	}{
-		{"home", "portfolio", true},
-		{"home", "acme-web", false}, // same group name, other site
-		{"acme", "acme-web", true},
-		{"acme", "portfolio", false},
-		{"home", "db", true},  // listed by key
-		{"infra", "db", true}, // top-level group, top-level endpoint
-		{"infra", "portfolio", false},
+	owner := map[string]string{}
+	for _, e := range c.Endpoints {
+		owner[e.Key] = e.Site
+	}
+	for _, d := range c.Dashboards {
+		owner["dashboard "+d.Key] = d.Site
+	}
+	for k, want := range map[string]string{
+		"portfolio": "home", "acme-web": "acme", "db": "",
+		"dashboard home": "home", "dashboard acme": "acme", "dashboard infra": "",
 	} {
-		if got := shows(tc.dash, tc.ep); got != tc.want {
-			t.Errorf("Shows(%s, %s) = %v, want %v", tc.dash, tc.ep, got, tc.want)
+		if owner[k] != want {
+			t.Errorf("%s is owned by %q, want %q", k, owner[k], want)
 		}
 	}
 

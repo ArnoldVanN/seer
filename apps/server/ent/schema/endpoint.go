@@ -24,6 +24,10 @@ func (Endpoint) Fields() []ent.Field {
 		field.Int("interval_seconds").Positive(),
 		field.Bool("enabled").Default(true),
 		field.Bytes("spec").Comment("JSON-encoded config.Endpoint"),
+		field.String("site").Default("").
+			Comment("Key of the site that defines it, empty at the top level."),
+		field.Enum("source").Values("config", "api").Default("config").
+			Comment("What owns the row: config sync only touches config rows, the write API only api rows."),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
 }

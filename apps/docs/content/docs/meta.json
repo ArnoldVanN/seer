@@ -8,6 +8,7 @@
     "authentication",
     "theming",
     "push",
+    "admin-api",
     "badges",
     "kubernetes",
     "---Internals---",

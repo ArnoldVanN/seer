@@ -1,0 +1,80 @@
+---
+title: Admin API
+description: Create sites, dashboards and endpoints at runtime from another service.
+---
+
+The config file suits what you manage by hand or through GitOps. When another
+service manages status pages from its own database, such as a platform that
+gives each customer a page, it creates them through the admin API instead.
+
+The admin API is a [ConnectRPC](https://connectrpc.com) service,
+`seer.admin.v1.AdminService`, on the private port. It's off until you set an
+API key:
+
+```yaml
+server:
+  adminApiKeys:
+    - ${SEER_ADMIN_API_KEY}   # at least 32 characters: openssl rand -hex 32
+```
+
+`SEER_ADMIN_API_KEY` alone works too. Callers send the key as a bearer token.
+The private port should only be reachable from inside your network.
+
+## Who owns what
+
+Every site, dashboard and endpoint belongs to the config file or to the API:
+
+- Config sync never changes or removes rows the API created.
+- The API never changes rows from the config file. Writing to one of their
+  keys fails with `FAILED_PRECONDITION`.
+
+Both can run side by side. Prefix the keys your service creates, for example
+`acme-<customer>-<fleet>`, so they never clash with the config's. If they do,
+the API's row stays and config sync logs a warning.
+
+## Calls
+
+| Call | |
+|---|---|
+| `PutSite`, `PutDashboard`, `PutEndpoint` | Create or replace. Idempotent, so a reconcile loop can send the same definition every pass. |
+| `DeleteSite`, `DeleteDashboard` | Remove. A missing key is not an error. |
+| `DeleteEndpoint` | Disables the endpoint and keeps its history; a later put brings it back. `purge: true` deletes it with its history. |
+| `ListSites`, `ListDashboards`, `ListEndpoints` | Keys, owner and site of every row, to find what to delete. |
+
+Definitions take the same fields as the config file. Sites created through
+the API come after the config's, so the config's first site still answers
+unknown hostnames, and a hostname can only be on one site. Changes reach every
+replica within 5 seconds.
+
+## Push endpoints
+
+`PutEndpoint` without a `url` creates a [push endpoint](/docs/push). Leave
+`token` empty and Seer generates one, returned in the response; later puts
+without a token keep it. Store it and send pings to `/push/<key>` on the
+public port.
+
+```go
+resp, err := admin.PutEndpoint(ctx, connect.NewRequest(&adminv1.PutEndpointRequest{
+	Endpoint: &adminv1.Endpoint{
+		Key:      "acme-42-eu",
+		Name:     "EU servers",
+		Group:    "Servers",
+		Site:     "acme-42",
+		Interval: durationpb.New(time.Minute),
+	},
+}))
+token := resp.Msg.Endpoint.Token
+```
+
+## Kubernetes
+
+Put the key in a secret under `api-key` and point the chart at it. If the
+chart's NetworkPolicy is on, allow your service onto the private port:
+
+```yaml
+adminApi:
+  existingSecret: seer-admin
+  allowFrom:
+    - namespaceSelector:
+        matchLabels: { kubernetes.io/metadata.name: platform }
+```

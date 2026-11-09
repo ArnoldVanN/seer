@@ -31,6 +31,13 @@ type Site struct {
 
 	// Resolved dashboard keys, in order.
 	Dashboards []string `yaml:"-"`
+	// Set by dashboards: ["*"]. Config sync stores the site that way, so it
+	// also lists dashboards created through the API.
+	AllDashboards bool `yaml:"-"`
+	// The site's own UI overrides, before the top-level ui is merged in, with
+	// customCssFile read into CustomCSS. Config sync stores these and the
+	// merge happens when a site is read from the DB.
+	OwnUI UI `yaml:"-"`
 	// Private sites need sign-in for everything, public dashboards included,
 	// e.g. an admin view of every site's dashboards on one internal host.
 	Private bool `yaml:"private"`
@@ -91,18 +98,6 @@ func (c *Config) flattenSites() {
 	}
 }
 
-// Shows reports whether a dashboard includes an endpoint: listed by key from
-// anywhere, or in one of its groups and owned by the same site (top-level
-// dashboards match top-level endpoints).
-func (c *Config) Shows(d *Dashboard, e *Endpoint) bool {
-	if slices.Contains(d.Endpoints, e.Key) {
-		return true
-	}
-	return slices.Contains(d.Groups, e.Group) && e.Site == d.Site
-}
-
-func (c *Config) EndpointByKey(key string) *Endpoint { return c.endpointIndex[key] }
-
 // where names an endpoint or dashboard in error messages by where it's
 // defined, since site-owned ones sit at the end of the flattened lists.
 func where(kind string, i int, key, site string) string {
@@ -115,19 +110,6 @@ func where(kind string, i int, key, site string) string {
 func (d *Dashboard) where(i int) string { return where("dashboards", i, d.Key, d.Site) }
 func (e *Endpoint) where(i int) string  { return where("endpoints", i, e.Key, e.Site) }
 
-// SiteForHost returns the site serving a hostname. Unknown hosts get the
-// first site, so a single-site setup works on any hostname, including
-// localhost and in-cluster names.
-func (c *Config) SiteForHost(host string) *Site {
-	host = normalizeHost(host)
-	for i := range c.Sites {
-		if slices.Contains(c.Sites[i].Hosts, host) {
-			return &c.Sites[i]
-		}
-	}
-	return &c.Sites[0]
-}
-
 func (c *Config) SiteByKey(key string) *Site {
 	for i := range c.Sites {
 		if c.Sites[i].Key == key {
@@ -137,7 +119,8 @@ func (c *Config) SiteByKey(key string) *Site {
 	return nil
 }
 
-func normalizeHost(h string) string {
+// NormalizeHost lowercases a hostname and drops any port.
+func NormalizeHost(h string) string {
 	h = strings.ToLower(strings.TrimSpace(h))
 	if host, _, err := net.SplitHostPort(h); err == nil {
 		return host
@@ -159,12 +142,23 @@ func (c *Config) applySiteDefaults() {
 		s := &c.Sites[i]
 		if len(s.DashboardEntries) == 1 && s.DashboardEntries[0].Key == "*" {
 			s.Dashboards = all
+			s.AllDashboards = true
 		}
 		for j, h := range s.Hosts {
-			s.Hosts[j] = normalizeHost(h)
+			s.Hosts[j] = NormalizeHost(h)
 		}
+		s.OwnUI = s.UI
 		s.UI = mergeUI(c.UI, s.UI)
 	}
+}
+
+// MergeUI layers a site's own UI over the top-level one, field by field. Each
+// side's CustomCSS must already be resolved; the site's is appended.
+func MergeUI(base, over UI) UI {
+	ui := mergeUI(base, over)
+	ui.CustomCSS = strings.TrimSpace(base.CustomCSS + "\n" + over.CustomCSS)
+	ui.CustomCSSFile = ""
+	return ui
 }
 
 func mergeUI(base, over UI) UI {
@@ -209,6 +203,7 @@ func (c *Config) loadSiteCSS() error {
 			return err
 		}
 		s.UI.CustomCSS = strings.TrimSpace(base + "\n" + own)
+		s.OwnUI.CustomCSS, s.OwnUI.CustomCSSFile = strings.TrimSpace(own), ""
 	}
 	for i := range c.Dashboards {
 		d := &c.Dashboards[i]
@@ -267,7 +262,7 @@ func (c *Config) validateSites(dashboards map[string]bool) []error {
 		}
 		// Inherited links were already checked at the top level.
 		if !slices.Equal(s.UI.FooterLinks, c.UI.FooterLinks) {
-			errs = append(errs, validateLinks(where+": ui.footerLinks", s.UI.FooterLinks)...)
+			errs = append(errs, ValidateLinks(where+": ui.footerLinks", s.UI.FooterLinks)...)
 		}
 		if len(s.AllowedGroups) > 0 && !s.Private {
 			errs = append(errs, fmt.Errorf("%s: allowedGroups needs private: true", where))

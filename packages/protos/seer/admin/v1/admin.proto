@@ -1,0 +1,227 @@
+syntax = "proto3";
+
+package seer.admin.v1;
+
+import "google/protobuf/duration.proto";
+import "seer/common/v1/common.proto";
+
+// Creates and removes sites, dashboards and endpoints at runtime, for a
+// service that manages them from its own database. Served on the private
+// port behind an admin API key (server.adminApiKeys).
+//
+// Rows created here are owned by the API: config sync never changes them,
+// and this service never changes rows that came from the config file. A
+// write to a key the config owns fails with FAILED_PRECONDITION.
+//
+// Puts are full replacements and idempotent, so a reconcile loop can send
+// the same definition on every pass. Deleting a missing key is not an error.
+service AdminService {
+  rpc PutSite(PutSiteRequest) returns (PutSiteResponse);
+  rpc DeleteSite(DeleteSiteRequest) returns (DeleteSiteResponse);
+  rpc ListSites(ListSitesRequest) returns (ListSitesResponse);
+
+  rpc PutDashboard(PutDashboardRequest) returns (PutDashboardResponse);
+  rpc DeleteDashboard(DeleteDashboardRequest) returns (DeleteDashboardResponse);
+  rpc ListDashboards(ListDashboardsRequest) returns (ListDashboardsResponse);
+
+  rpc PutEndpoint(PutEndpointRequest) returns (PutEndpointResponse);
+  rpc DeleteEndpoint(DeleteEndpointRequest) returns (DeleteEndpointResponse);
+  rpc ListEndpoints(ListEndpointsRequest) returns (ListEndpointsResponse);
+}
+
+enum Source {
+  SOURCE_UNSPECIFIED = 0;
+  // From the config file. Read-only here.
+  SOURCE_CONFIG = 1;
+  // Created through this service.
+  SOURCE_API = 2;
+}
+
+// What a List returns per row: enough to find rows to delete.
+message Item {
+  string key = 1;
+  Source source = 2;
+  // Owning site, empty at the top level. Sites leave it empty.
+  string site = 3;
+  // Endpoints only: false once deleted without purge.
+  bool enabled = 4;
+}
+
+message Site {
+  // Lowercase letters, digits, - and _.
+  string key = 1;
+  // Hostnames the site answers on. A host can only be on one site.
+  repeated string hosts = 2;
+  // Dashboard keys in tab order. They may be created after the site.
+  repeated string dashboards = 3;
+  // Lists every dashboard instead, like dashboards: ["*"] in the config.
+  bool all_dashboards = 4;
+  // Everything on the site needs sign-in, public dashboards included.
+  bool private = 5;
+  // Private sites only: groups that may use the site. Empty means any
+  // signed-in user.
+  repeated string allowed_groups = 6;
+  // Overrides the config file's top-level ui, field by field.
+  SiteUI ui = 7;
+}
+
+message SiteUI {
+  string title = 1;
+  string description = 2;
+  // "none" hides the logo.
+  string logo_url = 3;
+  string logo_dark_url = 4;
+  string home_url = 5;
+  string favicon_url = 6;
+  // Appended to the top-level CSS.
+  string custom_css = 7;
+  string footer = 8;
+  // Replaces the top-level footer links when set.
+  repeated seer.common.v1.Link footer_links = 9;
+  // Unset inherits the top level's setting.
+  optional bool hide_powered_by = 10;
+}
+
+message Dashboard {
+  string key = 1;
+  // Defaults to the key.
+  string title = 2;
+  string description = 3;
+  // Defaults to public.
+  seer.common.v1.Visibility visibility = 4;
+  // Endpoint groups shown, in order. A group matches only endpoints with
+  // the same site as the dashboard.
+  repeated string groups = 5;
+  // Endpoints shown by key, from any site.
+  repeated string endpoint_keys = 6;
+  // Private dashboards only: groups allowed to view it. Empty means any
+  // signed-in user.
+  repeated string allowed_groups = 7;
+  // Defaults to 90 days.
+  seer.common.v1.HistoryRange default_range = 8;
+  string custom_css = 9;
+  // Site the dashboard belongs to, for group matching. Empty is the top level.
+  string site = 10;
+}
+
+message Endpoint {
+  string key = 1;
+  // Defaults to the key.
+  string name = 2;
+  string group = 3;
+  string description = 4;
+  repeated seer.common.v1.Link links = 5;
+  // http, tcp, dns, icmp or push. Inferred from url when empty, or push
+  // when there's no url.
+  string type = 6;
+  string url = 7;
+  // How often it's checked, or for push endpoints how often a ping is
+  // expected. Defaults to 60s.
+  google.protobuf.Duration interval = 8;
+  // Defaults to 10s.
+  google.protobuf.Duration timeout = 9;
+  // Stops checks while keeping the endpoint and its history.
+  bool disabled = 10;
+
+  string method = 11;
+  map<string, string> headers = 12;
+  string body = 13;
+  bool insecure = 14;
+  DNSQuery dns = 15;
+
+  // Push endpoints only. Empty keeps the stored token, or generates one for
+  // a new endpoint; the response carries it.
+  string token = 16;
+  // Push endpoints only: how late a ping may be. Defaults to half the
+  // interval, at most 5m.
+  google.protobuf.Duration grace = 17;
+
+  // Not for push endpoints, which need none.
+  repeated string conditions = 18;
+  int32 failure_threshold = 19;
+  int32 success_threshold = 20;
+  // Types must have a provider under alerting in the config file.
+  repeated Alert alerts = 21;
+
+  // Site the endpoint belongs to, for group matching. Empty is the top level.
+  string site = 22;
+}
+
+message DNSQuery {
+  string name = 1;
+  string type = 2;
+}
+
+message Alert {
+  // webhook, slack, discord or email.
+  string type = 1;
+  int32 failure_threshold = 2;
+  int32 success_threshold = 3;
+  // Unset sends on resolve.
+  optional bool send_on_resolved = 4;
+  string description = 5;
+}
+
+message PutSiteRequest {
+  Site site = 1;
+}
+
+message PutSiteResponse {
+  Site site = 1;
+}
+
+message DeleteSiteRequest {
+  string key = 1;
+}
+
+message DeleteSiteResponse {}
+
+message ListSitesRequest {}
+
+message ListSitesResponse {
+  repeated Item sites = 1;
+}
+
+message PutDashboardRequest {
+  Dashboard dashboard = 1;
+}
+
+message PutDashboardResponse {
+  Dashboard dashboard = 1;
+}
+
+message DeleteDashboardRequest {
+  string key = 1;
+}
+
+message DeleteDashboardResponse {}
+
+message ListDashboardsRequest {}
+
+message ListDashboardsResponse {
+  repeated Item dashboards = 1;
+}
+
+message PutEndpointRequest {
+  Endpoint endpoint = 1;
+}
+
+message PutEndpointResponse {
+  // As stored, defaults filled in. Push endpoints carry their token.
+  Endpoint endpoint = 1;
+}
+
+message DeleteEndpointRequest {
+  string key = 1;
+  // Without purge the endpoint is disabled and its history kept, and a later
+  // Put brings it back. With purge it's deleted with its history.
+  bool purge = 2;
+}
+
+message DeleteEndpointResponse {}
+
+message ListEndpointsRequest {}
+
+message ListEndpointsResponse {
+  repeated Item endpoints = 1;
+}

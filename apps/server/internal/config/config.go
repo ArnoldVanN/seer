@@ -28,13 +28,12 @@ type Config struct {
 	Dashboards []Dashboard `yaml:"dashboards"`
 	Endpoints  []Endpoint  `yaml:"endpoints"`
 
-	// Hash of the endpoint and dashboard definitions, used by config sync.
+	// Hash of the site, endpoint and dashboard definitions, used by config sync.
 	Hash string `yaml:"-"`
 	// Raw is the expanded file contents, served to the UI as needed.
 	Raw []byte `yaml:"-"`
 
 	dashboardIndex map[string]*Dashboard
-	endpointIndex  map[string]*Endpoint
 }
 
 type Storage struct {
@@ -60,25 +59,28 @@ type Server struct {
 	CORSOrigins []string `yaml:"corsOrigins"`
 	// Shared HS256 secret the web app signs private-port tokens with.
 	InternalJWTSecret string `yaml:"internalJwtSecret"`
+	// Bearer tokens for the admin API on the private port. SEER_ADMIN_API_KEY
+	// adds one more. Empty disables the admin API.
+	AdminAPIKeys []string `yaml:"adminApiKeys"`
 }
 
 type UI struct {
-	Title       string `yaml:"title"`
-	Description string `yaml:"description"`
+	Title       string `yaml:"title" json:"title,omitempty"`
+	Description string `yaml:"description" json:"description,omitempty"`
 	// Logo URL. Empty uses the Seer logo; "none" hides it.
-	Logo string `yaml:"logo"`
+	Logo string `yaml:"logo" json:"logo,omitempty"`
 	// Dark-mode logo URL. Empty uses Logo.
-	LogoDark string `yaml:"logoDark"`
+	LogoDark string `yaml:"logoDark" json:"logoDark,omitempty"`
 	// Where the logo links to, e.g. the main site. Empty links to the status page.
-	HomeURL       string `yaml:"homeUrl"`
-	Favicon       string `yaml:"favicon"`
-	CustomCSS     string `yaml:"customCss"`
-	CustomCSSFile string `yaml:"customCssFile"`
+	HomeURL       string `yaml:"homeUrl" json:"homeUrl,omitempty"`
+	Favicon       string `yaml:"favicon" json:"favicon,omitempty"`
+	CustomCSS     string `yaml:"customCss" json:"customCss,omitempty"`
+	CustomCSSFile string `yaml:"customCssFile" json:"-"`
 	// Footer text and links, shown above the "Powered by Seer" credit.
-	Footer      string `yaml:"footer"`
-	FooterLinks []Link `yaml:"footerLinks"`
+	Footer      string `yaml:"footer" json:"footer,omitempty"`
+	FooterLinks []Link `yaml:"footerLinks" json:"footerLinks,omitempty"`
 	// Pointer so a site can turn the credit back on.
-	HidePoweredBy *bool `yaml:"hidePoweredBy"`
+	HidePoweredBy *bool `yaml:"hidePoweredBy" json:"hidePoweredBy,omitempty"`
 }
 
 // Alerting configures where alerts are sent. An endpoint alert's type names
@@ -147,8 +149,7 @@ type Dashboard struct {
 	AllowedGroups []string `yaml:"allowedGroups" json:"allowedGroups"`
 	// History range shown when the URL doesn't pick one: 24h, 7d, 30d, 90d or 1y.
 	DefaultRange string `yaml:"defaultRange" json:"defaultRange,omitempty"`
-	// CSS for this dashboard's page, after the site's. Served from config,
-	// not the database.
+	// CSS for this dashboard's page, after the site's.
 	CustomCSS     string `yaml:"customCss" json:"customCss,omitempty"`
 	CustomCSSFile string `yaml:"customCssFile" json:"customCssFile,omitempty"`
 
@@ -300,10 +301,6 @@ func Parse(raw []byte) (*Config, error) {
 	for i := range c.Dashboards {
 		c.dashboardIndex[c.Dashboards[i].Key] = &c.Dashboards[i]
 	}
-	c.endpointIndex = make(map[string]*Endpoint, len(c.Endpoints))
-	for i := range c.Endpoints {
-		c.endpointIndex[c.Endpoints[i].Key] = &c.Endpoints[i]
-	}
 
 	h, err := c.definitionHash()
 	if err != nil {
@@ -355,50 +352,16 @@ func (c *Config) applyDefaults() {
 	if c.Server.InternalJWTSecret == "" {
 		c.Server.InternalJWTSecret = os.Getenv("SEER_INTERNAL_JWT_SECRET")
 	}
+	if k := os.Getenv("SEER_ADMIN_API_KEY"); k != "" {
+		c.Server.AdminAPIKeys = append(c.Server.AdminAPIKeys, k)
+	}
 
 	if c.UI.Title == "" {
 		c.UI.Title = "Status"
 	}
 
 	for i := range c.Endpoints {
-		e := &c.Endpoints[i]
-		if e.Name == "" {
-			e.Name = e.Key
-		}
-		if e.Type == "" {
-			if e.URL == "" && e.Token != "" {
-				e.Type = "push"
-			} else {
-				e.Type = inferType(e.URL)
-			}
-		}
-		if e.Interval == 0 {
-			e.Interval = Duration(60 * time.Second)
-		}
-		if e.Timeout == 0 {
-			e.Timeout = Duration(10 * time.Second)
-		}
-		if e.Type == "push" && e.Grace == 0 {
-			e.Grace = Duration(min(e.Interval.D()/2, 5*time.Minute))
-		}
-		if e.Method == "" && e.Type == "http" {
-			e.Method = "GET"
-		}
-		if e.FailureThreshold == 0 {
-			e.FailureThreshold = 1
-		}
-		if e.SuccessThreshold == 0 {
-			e.SuccessThreshold = 1
-		}
-		for j := range e.Alerts {
-			a := &e.Alerts[j]
-			if a.FailureThreshold == 0 {
-				a.FailureThreshold = 3
-			}
-			if a.SuccessThreshold == 0 {
-				a.SuccessThreshold = 2
-			}
-		}
+		c.Endpoints[i].ApplyDefaults()
 	}
 
 	// With no dashboards configured, everything goes on one public page, which
@@ -415,18 +378,63 @@ func (c *Config) applyDefaults() {
 		c.Dashboards = []Dashboard{{Key: "default", Title: c.UI.Title, Visibility: "public", Groups: groups}}
 	}
 	for i := range c.Dashboards {
-		d := &c.Dashboards[i]
-		if d.Title == "" {
-			d.Title = d.Key
-		}
-		if d.Visibility == "" {
-			d.Visibility = "public"
-		}
-		if d.DefaultRange == "" {
-			d.DefaultRange = "90d"
-		}
+		c.Dashboards[i].ApplyDefaults()
 	}
 	c.applySiteDefaults()
+}
+
+// ApplyDefaults fills in what an endpoint's definition may leave out.
+func (e *Endpoint) ApplyDefaults() {
+	if e.Name == "" {
+		e.Name = e.Key
+	}
+	if e.Type == "" {
+		if e.URL == "" && e.Token != "" {
+			e.Type = "push"
+		} else {
+			e.Type = inferType(e.URL)
+		}
+	}
+	if e.Interval == 0 {
+		e.Interval = Duration(60 * time.Second)
+	}
+	if e.Timeout == 0 {
+		e.Timeout = Duration(10 * time.Second)
+	}
+	if e.Type == "push" && e.Grace == 0 {
+		e.Grace = Duration(min(e.Interval.D()/2, 5*time.Minute))
+	}
+	if e.Method == "" && e.Type == "http" {
+		e.Method = "GET"
+	}
+	if e.FailureThreshold == 0 {
+		e.FailureThreshold = 1
+	}
+	if e.SuccessThreshold == 0 {
+		e.SuccessThreshold = 1
+	}
+	for j := range e.Alerts {
+		a := &e.Alerts[j]
+		if a.FailureThreshold == 0 {
+			a.FailureThreshold = 3
+		}
+		if a.SuccessThreshold == 0 {
+			a.SuccessThreshold = 2
+		}
+	}
+}
+
+// ApplyDefaults fills in what a dashboard's definition may leave out.
+func (d *Dashboard) ApplyDefaults() {
+	if d.Title == "" {
+		d.Title = d.Key
+	}
+	if d.Visibility == "" {
+		d.Visibility = "public"
+	}
+	if d.DefaultRange == "" {
+		d.DefaultRange = "90d"
+	}
 }
 
 func envPort(dst *int, key string) {
@@ -456,51 +464,18 @@ func (c *Config) validate() error {
 	keys := map[string]bool{}
 	for i, e := range c.Endpoints {
 		where := e.where(i)
-		if !keyPattern.MatchString(e.Key) {
-			errs = append(errs, fmt.Errorf("%s: key must match %s", where, keyPattern))
-		}
 		if keys[e.Key] {
 			errs = append(errs, fmt.Errorf("%s: duplicate key", where))
 		}
 		keys[e.Key] = true
-		if e.Type == "push" {
-			errs = append(errs, e.validatePush(where)...)
-		} else {
-			if e.URL == "" {
-				errs = append(errs, fmt.Errorf("%s: url is required", where))
-			}
-			if len(e.Conditions) == 0 {
-				errs = append(errs, fmt.Errorf("%s: at least one condition is required", where))
-			}
-			if e.Token != "" {
-				errs = append(errs, fmt.Errorf("%s: token is only for push endpoints", where))
-			}
-		}
-		switch e.Type {
-		case "http", "tcp", "icmp", "push":
-		case "dns":
-			if e.DNS == nil || e.DNS.Name == "" {
-				errs = append(errs, fmt.Errorf("%s: dns.name is required for dns endpoints", where))
-			}
-		default:
-			errs = append(errs, fmt.Errorf("%s: unknown type %q", where, e.Type))
-		}
-		if e.Interval.D() < time.Second {
-			errs = append(errs, fmt.Errorf("%s: interval must be at least 1s", where))
-		}
-		for _, a := range e.Alerts {
-			switch {
-			case a.Type == "":
-				errs = append(errs, fmt.Errorf("%s: alert type is required", where))
-			case !slices.Contains(AlertTypes, a.Type):
-				errs = append(errs, fmt.Errorf("%s: alert type must be one of %s", where, strings.Join(AlertTypes, ", ")))
-			case !c.Alerting.Configured(a.Type):
-				errs = append(errs, fmt.Errorf("%s: alert type %q has no provider under alerting.%s", where, a.Type, a.Type))
-			}
-		}
-		errs = append(errs, validateLinks(where+": links", e.Links)...)
+		errs = append(errs, e.Validate(where, c.Alerting)...)
 	}
-	errs = append(errs, validateLinks("ui.footerLinks", c.UI.FooterLinks)...)
+	for i, k := range c.Server.AdminAPIKeys {
+		if len(k) < MinAdminKey {
+			errs = append(errs, fmt.Errorf("server.adminApiKeys[%d]: shorter than %d characters; generate one with `openssl rand -hex 32`", i, MinAdminKey))
+		}
+	}
+	errs = append(errs, ValidateLinks("ui.footerLinks", c.UI.FooterLinks)...)
 	errs = append(errs, c.Alerting.validate()...)
 
 	// Groups that exist per scope: site key, or "" for the top level.
@@ -514,19 +489,11 @@ func (c *Config) validate() error {
 	dkeys := map[string]bool{}
 	for i, d := range c.Dashboards {
 		where := d.where(i)
-		if !keyPattern.MatchString(d.Key) {
-			errs = append(errs, fmt.Errorf("%s: key must match %s", where, keyPattern))
-		}
 		if dkeys[d.Key] {
 			errs = append(errs, fmt.Errorf("%s: duplicate key", where))
 		}
 		dkeys[d.Key] = true
-		if d.Visibility != "public" && d.Visibility != "private" {
-			errs = append(errs, fmt.Errorf("%s: visibility must be public or private", where))
-		}
-		if !slices.Contains(Ranges, d.DefaultRange) {
-			errs = append(errs, fmt.Errorf("%s: defaultRange must be one of %s", where, strings.Join(Ranges, ", ")))
-		}
+		errs = append(errs, d.Validate(where)...)
 		for _, k := range d.Endpoints {
 			if !keys[k] {
 				errs = append(errs, fmt.Errorf("%s: unknown endpoint %q", where, k))
@@ -541,6 +508,74 @@ func (c *Config) validate() error {
 	errs = append(errs, c.validateSites(dkeys)...)
 	return errors.Join(errs...)
 }
+
+// ValidKey reports whether k can key an endpoint, dashboard or site.
+func ValidKey(k string) bool { return keyPattern.MatchString(k) }
+
+// Validate checks an endpoint on its own, after ApplyDefaults. Alert types
+// must have a provider in alerting.
+func (e Endpoint) Validate(where string, alerting Alerting) []error {
+	var errs []error
+	if !ValidKey(e.Key) {
+		errs = append(errs, fmt.Errorf("%s: key must match %s", where, keyPattern))
+	}
+	if e.Type == "push" {
+		errs = append(errs, e.validatePush(where)...)
+	} else {
+		if e.URL == "" {
+			errs = append(errs, fmt.Errorf("%s: url is required", where))
+		}
+		if len(e.Conditions) == 0 {
+			errs = append(errs, fmt.Errorf("%s: at least one condition is required", where))
+		}
+		if e.Token != "" {
+			errs = append(errs, fmt.Errorf("%s: token is only for push endpoints", where))
+		}
+	}
+	switch e.Type {
+	case "http", "tcp", "icmp", "push":
+	case "dns":
+		if e.DNS == nil || e.DNS.Name == "" {
+			errs = append(errs, fmt.Errorf("%s: dns.name is required for dns endpoints", where))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("%s: unknown type %q", where, e.Type))
+	}
+	if e.Interval.D() < time.Second {
+		errs = append(errs, fmt.Errorf("%s: interval must be at least 1s", where))
+	}
+	for _, a := range e.Alerts {
+		switch {
+		case a.Type == "":
+			errs = append(errs, fmt.Errorf("%s: alert type is required", where))
+		case !slices.Contains(AlertTypes, a.Type):
+			errs = append(errs, fmt.Errorf("%s: alert type must be one of %s", where, strings.Join(AlertTypes, ", ")))
+		case !alerting.Configured(a.Type):
+			errs = append(errs, fmt.Errorf("%s: alert type %q has no provider under alerting.%s", where, a.Type, a.Type))
+		}
+	}
+	errs = append(errs, ValidateLinks(where+": links", e.Links)...)
+	return errs
+}
+
+// Validate checks a dashboard on its own, after ApplyDefaults. What it
+// references is checked by the caller.
+func (d Dashboard) Validate(where string) []error {
+	var errs []error
+	if !ValidKey(d.Key) {
+		errs = append(errs, fmt.Errorf("%s: key must match %s", where, keyPattern))
+	}
+	if d.Visibility != "public" && d.Visibility != "private" {
+		errs = append(errs, fmt.Errorf("%s: visibility must be public or private", where))
+	}
+	if !slices.Contains(Ranges, d.DefaultRange) {
+		errs = append(errs, fmt.Errorf("%s: defaultRange must be one of %s", where, strings.Join(Ranges, ", ")))
+	}
+	return errs
+}
+
+// MinAdminKey keeps admin API keys out of guessing range.
+const MinAdminKey = 32
 
 // MinPushToken keeps push tokens out of guessing range.
 const MinPushToken = 16
@@ -586,7 +621,8 @@ func (a Alerting) validate() []error {
 	return errs
 }
 
-func validateLinks(where string, links []Link) []error {
+// ValidateLinks checks footer or endpoint links.
+func ValidateLinks(where string, links []Link) []error {
 	var errs []error
 	for i, l := range links {
 		if l.Name == "" || l.URL == "" {
@@ -599,10 +635,36 @@ func validateLinks(where string, links []Link) []error {
 // definitionHash covers only what config sync writes to the DB, so changing a
 // port or UI title doesn't count as a new endpoint config.
 func (c *Config) definitionHash() (string, error) {
+	type owned[T any] struct {
+		Site string
+		Def  T
+	}
+	ds := make([]owned[Dashboard], len(c.Dashboards))
+	for i, d := range c.Dashboards {
+		ds[i] = owned[Dashboard]{d.Site, d}
+	}
+	es := make([]owned[Endpoint], len(c.Endpoints))
+	for i, e := range c.Endpoints {
+		es[i] = owned[Endpoint]{e.Site, e}
+	}
+	type site struct {
+		Key           string
+		Hosts         []string
+		Dashboards    []string
+		AllDashboards bool
+		Private       bool
+		AllowedGroups []string
+		UI            UI
+	}
+	ss := make([]site, len(c.Sites))
+	for i, x := range c.Sites {
+		ss[i] = site{x.Key, x.Hosts, x.Dashboards, x.AllDashboards, x.Private, x.AllowedGroups, x.OwnUI}
+	}
 	b, err := yaml.Marshal(struct {
-		D []Dashboard
-		E []Endpoint
-	}{c.Dashboards, c.Endpoints})
+		S []site
+		D []owned[Dashboard]
+		E []owned[Endpoint]
+	}{ss, ds, es})
 	if err != nil {
 		return "", err
 	}

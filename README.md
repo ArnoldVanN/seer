@@ -149,10 +149,13 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] Maintenance windows
 - [ ] Announcements / incident notes on status pages
 - [ ] More checkers: SSH, STARTTLS, WebSocket, gRPC; HTTP client options (mTLS, proxy, DNS resolver)
+- [ ] Worker regions: label replicas with a region, pin endpoints to regions or check them from each, and show results per region
 - [ ] TimescaleDB mode
 - [ ] MySQL support
-- [ ] Config editor in the UI
-- [ ] Write API / DB-backed config, so sites, endpoints and alert targets can be created at runtime
+- [ ] Config editor in the UI: edits are API-owned rows like the write API's, with YAML export and optionally a PR to a GitOps repo
+- [ ] Multiple config files or a config directory, merged into one config
+- [ ] Alert targets through the admin API (alerting providers are config-only)
+- [ ] Custom domain check: an endpoint a TLS front end (Caddy `ask`, cert-manager) can query to confirm a hostname belongs to a site
 - [ ] Map an OIDC claim to groups, so `allowedGroups` can follow an identity provider's claim
 - [ ] Keep session groups current: refresh them with the provider's refresh token, and end sessions on OIDC back-channel logout
 - [ ] User management in the UI: who has signed in and when, force sign-out, block users

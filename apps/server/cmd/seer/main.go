@@ -27,6 +27,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/ArnoldVanN/seer/apps/server/internal/admin"
 	"github.com/ArnoldVanN/seer/apps/server/internal/auth"
 	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 	"github.com/ArnoldVanN/seer/apps/server/internal/db"
@@ -37,6 +38,8 @@ import (
 	"github.com/ArnoldVanN/seer/apps/server/internal/rpc"
 	"github.com/ArnoldVanN/seer/apps/server/internal/scheduler"
 	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/sites"
+	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/admin/v1/adminv1connect"
 	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/public/v1/publicv1connect"
 )
@@ -165,30 +168,45 @@ func run(ctx context.Context, configPath string, migrate, api, worker bool) erro
 	if api {
 		bus := events.NewBus(d.DSN)
 		g.Go(func() error { bus.Run(ctx); return nil })
+		siteStore := sites.New(d, cfg.UI)
 
 		public := http.NewServeMux()
-		path, h := publicv1connect.NewStatusServiceHandler(rpc.NewPublic(d, bus, cfg))
+		path, h := publicv1connect.NewStatusServiceHandler(rpc.NewPublic(d, bus, siteStore))
 		public.Handle(path, h)
 		public.Handle(push.Path, push.New(d, &scheduler.Recorder{DB: d, Notify: disp}))
-		serve(ctx, g, "public", cfg.Server.PublicPort, withCORS(rpc.WithSite(cfg, public), cfg.Server.CORSOrigins))
+		serve(ctx, g, "public", cfg.Server.PublicPort, withCORS(rpc.WithSite(siteStore, public), cfg.Server.CORSOrigins))
 
+		private := http.NewServeMux()
+		var privateUp bool
 		if cfg.Server.InternalJWTSecret == "" {
-			log.Warn().Msg("server.internalJwtSecret is not set; private API disabled")
+			log.Warn().Msg("server.internalJwtSecret is not set; private dashboards disabled")
 		} else if err := checkSecret(cfg.Server.InternalJWTSecret); err != nil {
 			return err
 		} else {
 			secret := cfg.Server.InternalJWTSecret
 			sessions := session.New(d)
-			private := http.NewServeMux()
 			private.Handle(privatev1connect.NewPrivateStatusServiceHandler(
-				rpc.NewPrivate(d, bus, cfg, sessions),
+				rpc.NewPrivate(d, bus, siteStore, sessions),
 				connect.WithInterceptors(auth.NewInterceptor(secret, sessions)),
 			))
 			private.Handle(privatev1connect.NewSessionServiceHandler(
 				&rpc.Sessions{Store: sessions},
 				connect.WithInterceptors(auth.NewWebInterceptor(secret)),
 			))
-			serve(ctx, g, "private", cfg.Server.PrivatePort, rpc.WithSite(cfg, private))
+			privateUp = true
+		}
+		// The admin API isn't scoped to a site, so it skips WithSite.
+		privateRoot := http.NewServeMux()
+		privateRoot.Handle("/", rpc.WithSite(siteStore, private))
+		if len(cfg.Server.AdminAPIKeys) > 0 {
+			privateRoot.Handle(adminv1connect.NewAdminServiceHandler(
+				&admin.Service{DB: d, Alerting: cfg.Alerting, Sites: siteStore},
+				connect.WithInterceptors(auth.NewAdminInterceptor(cfg.Server.AdminAPIKeys)),
+			))
+			privateUp = true
+		}
+		if privateUp {
+			serve(ctx, g, "private", cfg.Server.PrivatePort, privateRoot)
 		}
 	}
 

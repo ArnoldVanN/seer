@@ -4,6 +4,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -23,15 +24,16 @@ import (
 	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 	"github.com/ArnoldVanN/seer/apps/server/internal/events"
 	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/sites"
 	commonv1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/common/v1"
 	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/public/v1/publicv1connect"
 )
 
 type Service struct {
-	DB     *db.DB
-	Bus    *events.Bus
-	Config *config.Config
+	DB    *db.DB
+	Bus   *events.Bus
+	Sites *sites.Store
 	// Private port only: open streams check their session again on refresh.
 	Sessions *session.Store
 	private  bool
@@ -42,12 +44,12 @@ var (
 	_ privatev1connect.PrivateStatusServiceHandler = (*Service)(nil)
 )
 
-func NewPublic(d *db.DB, bus *events.Bus, cfg *config.Config) *Service {
-	return &Service{DB: d, Bus: bus, Config: cfg}
+func NewPublic(d *db.DB, bus *events.Bus, st *sites.Store) *Service {
+	return &Service{DB: d, Bus: bus, Sites: st}
 }
 
-func NewPrivate(d *db.DB, bus *events.Bus, cfg *config.Config, sessions *session.Store) *Service {
-	return &Service{DB: d, Bus: bus, Config: cfg, Sessions: sessions, private: true}
+func NewPrivate(d *db.DB, bus *events.Bus, st *sites.Store, sessions *session.Store) *Service {
+	return &Service{DB: d, Bus: bus, Sites: st, Sessions: sessions, private: true}
 }
 
 var errNotFound = connect.NewError(connect.CodeNotFound, errors.New("not found"))
@@ -55,8 +57,7 @@ var errNotFound = connect.NewError(connect.CodeNotFound, errors.New("not found")
 // canView is the single place visibility is decided. A dashboard must be on
 // the request's site, the caller must be allowed on the site if it's private,
 // and then the dashboard must be public or allowed for the caller.
-func (s *Service) canView(ctx context.Context, d *ent.Dashboard) bool {
-	site := s.siteFrom(ctx)
+func (s *Service) canView(ctx context.Context, site *sites.Site, d *ent.Dashboard) bool {
 	if !slices.Contains(site.Dashboards, d.Key) {
 		return false
 	}
@@ -92,14 +93,18 @@ func (s *Service) allowed(ctx context.Context, groups []string) bool {
 
 // visibleDashboards returns what the caller can see, in the site's order.
 func (s *Service) visibleDashboards(ctx context.Context) ([]*ent.Dashboard, error) {
-	order := s.siteFrom(ctx).Dashboards
+	site, err := s.siteFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	order := site.Dashboards
 	all, err := s.DB.Ent.Dashboard.Query().Where(dashboard.KeyIn(order...)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := all[:0]
 	for _, d := range all {
-		if s.canView(ctx, d) {
+		if s.canView(ctx, site, d) {
 			out = append(out, d)
 		}
 	}
@@ -110,8 +115,12 @@ func (s *Service) visibleDashboards(ctx context.Context) ([]*ent.Dashboard, erro
 }
 
 func (s *Service) dashboard(ctx context.Context, key string) (*ent.Dashboard, error) {
+	site, err := s.siteFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
 	d, err := s.DB.Ent.Dashboard.Query().Where(dashboard.Key(key)).Only(ctx)
-	if ent.IsNotFound(err) || (err == nil && !s.canView(ctx, d)) {
+	if ent.IsNotFound(err) || (err == nil && !s.canView(ctx, site, d)) {
 		// Hidden dashboards look missing rather than forbidden.
 		return nil, errNotFound
 	}
@@ -132,7 +141,7 @@ func (s *Service) endpointsOf(ctx context.Context, d *ent.Dashboard) ([]*ent.End
 	if err != nil {
 		return nil, err
 	}
-	eps = slices.DeleteFunc(eps, func(e *ent.Endpoint) bool { return !s.shows(d, e) })
+	eps = slices.DeleteFunc(eps, func(e *ent.Endpoint) bool { return !shows(d, e) })
 	rank := func(e *ent.Endpoint) int {
 		if i := slices.Index(d.Groups, e.GroupName); i >= 0 {
 			return i
@@ -166,13 +175,16 @@ func (s *Service) GetDashboard(ctx context.Context, req *connect.Request[commonv
 	if err != nil {
 		return nil, err
 	}
-	out := &commonv1.Dashboard{Key: d.Key, Title: d.Title, Visibility: visibility(d.Visibility), HistoryRange: req.Msg.HistoryRange}
-	if cd := s.Config.DashboardByKey(d.Key); cd != nil {
-		out.CustomCss = cd.CustomCSS
-		out.Description = cd.Description
-		if out.HistoryRange == commonv1.HistoryRange_HISTORY_RANGE_UNSPECIFIED {
-			out.HistoryRange = historyRange(cd.DefaultRange)
-		}
+	out := &commonv1.Dashboard{
+		Key:          d.Key,
+		Title:        d.Title,
+		Visibility:   visibility(d.Visibility),
+		Description:  d.Description,
+		CustomCss:    d.CustomCSS,
+		HistoryRange: req.Msg.HistoryRange,
+	}
+	if out.HistoryRange == commonv1.HistoryRange_HISTORY_RANGE_UNSPECIFIED {
+		out.HistoryRange = historyRange(d.DefaultRange)
 	}
 	hist, err := s.history(ctx, eps, out.HistoryRange)
 	if err != nil {
@@ -190,15 +202,14 @@ func (s *Service) GetDashboard(ctx context.Context, req *connect.Request[commonv
 	return connect.NewResponse(&commonv1.GetDashboardResponse{Dashboard: out}), nil
 }
 
-// shows applies the config's group scoping: a group matches only endpoints
-// defined next to the dashboard. The database rows have no owner, so this
-// reads it from the config.
-func (s *Service) shows(d *ent.Dashboard, e *ent.Endpoint) bool {
-	cd, ce := s.Config.DashboardByKey(d.Key), s.Config.EndpointByKey(e.Key)
-	if cd == nil || ce == nil {
-		return false
+// shows reports whether a dashboard includes an endpoint: listed by key from
+// anywhere, or in one of its groups and owned by the same site, so two sites
+// can each have a group with the same name.
+func shows(d *ent.Dashboard, e *ent.Endpoint) bool {
+	if slices.Contains(d.EndpointKeys, e.Key) {
+		return true
 	}
-	return s.Config.Shows(cd, ce)
+	return slices.Contains(d.Groups, e.GroupName) && e.Site == d.Site
 }
 
 // visibleEndpoint finds an endpoint that is on at least one dashboard the
@@ -216,7 +227,7 @@ func (s *Service) visibleEndpoint(ctx context.Context, key string) (*ent.Endpoin
 		return nil, err
 	}
 	for _, d := range ds {
-		if s.shows(d, e) {
+		if shows(d, e) {
 			return e, nil
 		}
 	}
@@ -287,12 +298,21 @@ func publicError(err string) string {
 }
 
 func (s *Service) GetSiteConfig(ctx context.Context, _ *connect.Request[commonv1.GetSiteConfigRequest]) (*connect.Response[commonv1.GetSiteConfigResponse], error) {
-	cur := s.siteFrom(ctx)
+	cur, err := s.siteFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hasPrivate, err := s.DB.Ent.Dashboard.Query().
+		Where(dashboard.KeyIn(cur.Dashboards...), dashboard.VisibilityEQ(dashboard.VisibilityPrivate)).
+		Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ui := cur.UI
 	site := &commonv1.SiteConfig{
 		Key:         cur.Key,
 		Private:     cur.Private,
-		HasPrivate:  s.hasPrivate(cur),
+		HasPrivate:  hasPrivate,
 		Title:       ui.Title,
 		Description: ui.Description,
 		LogoUrl:     ui.Logo,
@@ -306,15 +326,6 @@ func (s *Service) GetSiteConfig(ctx context.Context, _ *connect.Request[commonv1
 		HidePoweredBy: ui.HidePoweredBy != nil && *ui.HidePoweredBy,
 	}
 	return connect.NewResponse(&commonv1.GetSiteConfigResponse{Site: site}), nil
-}
-
-func (s *Service) hasPrivate(site *config.Site) bool {
-	for _, k := range site.Dashboards {
-		if d := s.Config.DashboardByKey(k); d != nil && d.Visibility == "private" {
-			return true
-		}
-	}
-	return false
 }
 
 const (
@@ -514,10 +525,14 @@ func (s *Service) toEndpoint(e *ent.Endpoint, hist []*commonv1.HistoryBucket) *c
 		Status:  commonv1.Status_STATUS_UNKNOWN,
 		History: hist,
 	}
-	// Display-only fields come from the config, like dashboard CSS.
-	if ce := s.Config.EndpointByKey(e.Key); ce != nil {
-		out.Description = ce.Description
-		out.Links = links(ce.Links)
+	// Display-only fields live in the stored spec.
+	var spec struct {
+		Description string        `json:"description"`
+		Links       []config.Link `json:"links"`
+	}
+	if err := json.Unmarshal(e.Spec, &spec); err == nil {
+		out.Description = spec.Description
+		out.Links = links(spec.Links)
 	}
 	if st := e.Edges.State; st != nil {
 		out.Status = status(string(st.Status))

@@ -4,19 +4,23 @@ package jobs
 
 import (
 	"context"
+	stdsql "database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/rs/zerolog/log"
 
 	"github.com/ArnoldVanN/seer/apps/server/ent"
 	"github.com/ArnoldVanN/seer/apps/server/ent/dashboard"
 	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/site"
 	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 )
 
-// SyncConfig writes cfg's endpoints and dashboards to the DB, which is what
+// SyncConfig writes cfg's sites, endpoints and dashboards to the DB, which is what
 // workers and the API read, so all replicas agree even mid-rollout.
 //
 // generation orders configs (the Helm chart passes the release revision).
@@ -59,20 +63,22 @@ func SyncConfig(ctx context.Context, d *db.DB, cfg *config.Config, generation in
 			return err
 		}
 		log.Info().Str("hash", short(cfg.Hash)).Int64("generation", generation).
-			Int("endpoints", len(cfg.Endpoints)).Int("dashboards", len(cfg.Dashboards)).
+			Int("sites", len(cfg.Sites)).Int("endpoints", len(cfg.Endpoints)).Int("dashboards", len(cfg.Dashboards)).
 			Msg("config synced")
 		return nil
 	})
 }
 
 func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
+	// Every upsert only overwrites a config row. On a key the write API owns
+	// it updates nothing, and ent reports that as sql.ErrNoRows.
 	keys := make([]string, 0, len(cfg.Endpoints))
 	for _, e := range cfg.Endpoints {
+		keys = append(keys, e.Key)
 		spec, err := json.Marshal(e)
 		if err != nil {
 			return err
 		}
-		keys = append(keys, e.Key)
 		err = tx.Endpoint.Create().
 			SetKey(e.Key).
 			SetName(e.Name).
@@ -81,9 +87,18 @@ func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
 			SetIntervalSeconds(max(1, int(e.Interval.D().Seconds()))).
 			SetEnabled(e.IsEnabled()).
 			SetSpec(spec).
-			OnConflictColumns(endpoint.FieldKey).
-			UpdateNewValues().
+			SetSite(e.Site).
+			SetSource(endpoint.SourceConfig).
+			OnConflict(
+				sql.ConflictColumns(endpoint.FieldKey),
+				sql.ResolveWithNewValues(),
+				sql.UpdateWhere(sql.EQ(endpoint.FieldSource, endpoint.SourceConfig.String())),
+			).
 			Exec(ctx)
+		if errors.Is(err, stdsql.ErrNoRows) {
+			log.Warn().Str("endpoint", e.Key).Msg("endpoint key is owned by the API; skipping the config's version")
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("upsert endpoint %s: %w", e.Key, err)
 		}
@@ -91,7 +106,7 @@ func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
 	// Endpoints removed from the config are disabled rather than deleted so
 	// their history survives a typo or a temporary removal.
 	if _, err := tx.Endpoint.Update().
-		Where(endpoint.KeyNotIn(keys...)).
+		Where(endpoint.SourceEQ(endpoint.SourceConfig), endpoint.KeyNotIn(keys...)).
 		SetEnabled(false).
 		Save(ctx); err != nil {
 		return err
@@ -108,14 +123,72 @@ func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
 			SetGroups(dsh.Groups).
 			SetEndpointKeys(dsh.Endpoints).
 			SetAllowedGroups(dsh.AllowedGroups).
-			OnConflictColumns(dashboard.FieldKey).
-			UpdateNewValues().
+			SetSite(dsh.Site).
+			SetDescription(dsh.Description).
+			SetDefaultRange(dsh.DefaultRange).
+			SetCustomCSS(dsh.CustomCSS).
+			SetSource(dashboard.SourceConfig).
+			OnConflict(
+				sql.ConflictColumns(dashboard.FieldKey),
+				sql.ResolveWithNewValues(),
+				sql.UpdateWhere(sql.EQ(dashboard.FieldSource, dashboard.SourceConfig.String())),
+			).
 			Exec(ctx)
+		if errors.Is(err, stdsql.ErrNoRows) {
+			log.Warn().Str("dashboard", dsh.Key).Msg("dashboard key is owned by the API; skipping the config's version")
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("upsert dashboard %s: %w", dsh.Key, err)
 		}
 	}
-	_, err := tx.Dashboard.Delete().Where(dashboard.KeyNotIn(dkeys...)).Exec(ctx)
+	if _, err := tx.Dashboard.Delete().
+		Where(dashboard.SourceEQ(dashboard.SourceConfig), dashboard.KeyNotIn(dkeys...)).
+		Exec(ctx); err != nil {
+		return err
+	}
+	return applySites(ctx, tx, cfg)
+}
+
+func applySites(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
+	skeys := make([]string, 0, len(cfg.Sites))
+	for i, st := range cfg.Sites {
+		skeys = append(skeys, st.Key)
+		ui, err := json.Marshal(st.OwnUI)
+		if err != nil {
+			return err
+		}
+		dashboards := st.Dashboards
+		if st.AllDashboards {
+			dashboards = nil
+		}
+		err = tx.Site.Create().
+			SetKey(st.Key).
+			SetPosition(i).
+			SetHosts(st.Hosts).
+			SetDashboards(dashboards).
+			SetAllDashboards(st.AllDashboards).
+			SetPrivate(st.Private).
+			SetAllowedGroups(st.AllowedGroups).
+			SetUI(ui).
+			SetSource(site.SourceConfig).
+			OnConflict(
+				sql.ConflictColumns(site.FieldKey),
+				sql.ResolveWithNewValues(),
+				sql.UpdateWhere(sql.EQ(site.FieldSource, site.SourceConfig.String())),
+			).
+			Exec(ctx)
+		if errors.Is(err, stdsql.ErrNoRows) {
+			log.Warn().Str("site", st.Key).Msg("site key is owned by the API; skipping the config's version")
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("upsert site %s: %w", st.Key, err)
+		}
+	}
+	_, err := tx.Site.Delete().
+		Where(site.SourceEQ(site.SourceConfig), site.KeyNotIn(skeys...)).
+		Exec(ctx)
 	return err
 }
 

@@ -55,6 +55,13 @@ app.kubernetes.io/component: {{ .component }}
     secretKeyRef:
       name: {{ include "seer.secretName" . }}
       key: internal-jwt-secret
+{{- with .Values.adminApi.existingSecret }}
+- name: SEER_ADMIN_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: api-key
+{{- end }}
 # Newer releases win config sync during a rolling upgrade.
 - name: SEER_CONFIG_GENERATION
   value: {{ .Release.Revision | quote }}

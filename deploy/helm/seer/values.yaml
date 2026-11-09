@@ -81,6 +81,14 @@ auth:
     existingSecret: ""
     groups: [admin]
 
+# -- Admin API on the private port, for a service that creates sites,
+# dashboards and endpoints at runtime. Off unless existingSecret is set.
+adminApi:
+  # Secret with the key under api-key (`openssl rand -hex 32`).
+  existingSecret: ""
+  # NetworkPolicy peers allowed on the private port besides web pods.
+  allowFrom: []
+
 # -- Where private dashboards are served: under a path on the public host, or
 # on their own host (which then needs its own hostname on the HTTPRoute).
 privateDashboards:
