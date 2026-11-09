@@ -1,4 +1,4 @@
-module github.com/seer-status/seer/packages/protos
+module github.com/ArnoldVanN/seer/packages/protos
 
 go 1.27.3
 

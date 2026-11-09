@@ -15,12 +15,12 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
-	"github.com/seer-status/seer/apps/server/internal/scheduler"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/internal/scheduler"
 )
 
 // Path is where the handler is mounted; the endpoint key follows it.

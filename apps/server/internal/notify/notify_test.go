@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/testdb"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 )
 
 var ev = Event{

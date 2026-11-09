@@ -8,8 +8,8 @@ import (
 
 	probing "github.com/prometheus-community/pro-bing"
 
-	"github.com/seer-status/seer/apps/server/internal/condition"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/condition"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // probeICMP sends one echo. It uses unprivileged (UDP) ping unless

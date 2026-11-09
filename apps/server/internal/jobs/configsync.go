@@ -9,11 +9,11 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/dashboard"
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/dashboard"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 )
 
 // SyncConfig writes cfg's endpoints and dashboards to the DB, which is what

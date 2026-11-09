@@ -13,7 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/seer-status/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/session"
 )
 
 const (

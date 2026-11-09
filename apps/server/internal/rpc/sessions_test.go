@@ -9,15 +9,15 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/seer-status/seer/apps/server/internal/auth"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/events"
-	"github.com/seer-status/seer/apps/server/internal/jobs"
-	"github.com/seer-status/seer/apps/server/internal/session"
-	"github.com/seer-status/seer/apps/server/internal/testdb"
-	commonv1 "github.com/seer-status/seer/packages/protos/gen/go/seer/common/v1"
-	privatev1 "github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1"
-	"github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
+	"github.com/ArnoldVanN/seer/apps/server/internal/auth"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/events"
+	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
+	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
+	commonv1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/common/v1"
+	privatev1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1"
+	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 )
 
 func bearer(tok string) connect.ClientOption {

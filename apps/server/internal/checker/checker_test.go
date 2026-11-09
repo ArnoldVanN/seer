@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 func TestHTTP(t *testing.T) {

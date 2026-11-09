@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 type siteKey struct{}

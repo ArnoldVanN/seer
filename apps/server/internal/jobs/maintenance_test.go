@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/ent/rollup"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/testdb"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/rollup"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 )
 
 func TestRollupResponseTimesCountSuccessesOnly(t *testing.T) {

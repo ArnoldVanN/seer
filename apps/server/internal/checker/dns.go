@@ -9,8 +9,8 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/seer-status/seer/apps/server/internal/condition"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/condition"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // probeDNS queries the nameserver in the endpoint URL (dns://1.1.1.1) directly.

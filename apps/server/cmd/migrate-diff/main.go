@@ -18,7 +18,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
 
-	"github.com/seer-status/seer/apps/server/ent/migrate"
+	"github.com/ArnoldVanN/seer/apps/server/ent/migrate"
 )
 
 func main() {

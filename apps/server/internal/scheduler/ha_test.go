@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
-	"github.com/seer-status/seer/apps/server/internal/jobs"
-	"github.com/seer-status/seer/apps/server/internal/notify"
-	"github.com/seer-status/seer/apps/server/internal/testdb"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
+	"github.com/ArnoldVanN/seer/apps/server/internal/notify"
+	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 )
 
 type recordingNotifier struct {

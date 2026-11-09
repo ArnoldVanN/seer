@@ -3,9 +3,9 @@ package scheduler
 import (
 	"time"
 
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/notify"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/notify"
 )
 
 // state is the part of EndpointState a result changes.

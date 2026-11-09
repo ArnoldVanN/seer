@@ -11,4 +11,4 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/seer-status/seer/packages/protos/gen/go
+      value: github.com/ArnoldVanN/seer/packages/protos/gen/go

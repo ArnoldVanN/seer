@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent/schema"
-	"github.com/seer-status/seer/apps/server/internal/condition"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/ent/schema"
+	"github.com/ArnoldVanN/seer/apps/server/internal/condition"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // Outcome is a finished check, ready to be stored.

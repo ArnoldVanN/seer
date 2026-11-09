@@ -13,14 +13,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	entworker "github.com/seer-status/seer/apps/server/ent/worker"
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/cluster"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	entworker "github.com/ArnoldVanN/seer/apps/server/ent/worker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/cluster"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 )
 
 const (

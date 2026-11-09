@@ -1,8 +1,8 @@
-module github.com/seer-status/seer/apps/server
+module github.com/ArnoldVanN/seer/apps/server
 
 go 1.27.3
 
-replace github.com/seer-status/seer/packages/protos => ../../packages/protos
+replace github.com/ArnoldVanN/seer/packages/protos => ../../packages/protos
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -72,7 +72,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/rs/cors v1.11.1
 	github.com/rs/zerolog v1.35.1
-	github.com/seer-status/seer/packages/protos v0.0.0
+	github.com/ArnoldVanN/seer/packages/protos v0.0.0
 	golang.org/x/sync v0.24.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1

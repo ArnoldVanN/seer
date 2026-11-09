@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/internal/condition"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/condition"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // Bodies past this are cut off; conditions only see the first part.

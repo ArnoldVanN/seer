@@ -18,14 +18,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	"github.com/seer-status/seer/apps/server/ent/rollup"
-	"github.com/seer-status/seer/apps/server/internal/cluster"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
-	"github.com/seer-status/seer/apps/server/internal/jobs"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	"github.com/ArnoldVanN/seer/apps/server/ent/rollup"
+	"github.com/ArnoldVanN/seer/apps/server/internal/cluster"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
 )
 
 const (

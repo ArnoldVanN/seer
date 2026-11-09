@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	entsession "github.com/seer-status/seer/apps/server/ent/session"
-	"github.com/seer-status/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	entsession "github.com/ArnoldVanN/seer/apps/server/ent/session"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 )
 
 const (

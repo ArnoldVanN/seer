@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/ent/endpoint"
-	"github.com/seer-status/seer/apps/server/ent/endpointstate"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/jobs"
-	"github.com/seer-status/seer/apps/server/internal/scheduler"
-	"github.com/seer-status/seer/apps/server/internal/testdb"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpointstate"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/jobs"
+	"github.com/ArnoldVanN/seer/apps/server/internal/scheduler"
+	"github.com/ArnoldVanN/seer/apps/server/internal/testdb"
 )
 
 const token = "0123456789abcdef"

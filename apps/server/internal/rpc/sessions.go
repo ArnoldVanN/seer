@@ -7,10 +7,10 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/internal/session"
-	privatev1 "github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1"
-	"github.com/seer-status/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/internal/session"
+	privatev1 "github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1"
+	"github.com/ArnoldVanN/seer/packages/protos/gen/go/seer/private/v1/privatev1connect"
 )
 
 // Sessions serves the web app's session calls on the private port, behind

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/seer-status/seer/apps/server/internal/condition"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/condition"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // hostPort strips a scheme like tcp:// or icmp:// if present.

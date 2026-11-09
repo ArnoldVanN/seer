@@ -7,10 +7,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 )
 
 // pushPoll caps how long a push watcher sleeps (or the endpoint's period, if

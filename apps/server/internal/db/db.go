@@ -13,7 +13,7 @@ import (
 
 	"entgo.io/ent/dialect"
 
-	"github.com/seer-status/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
 )
 
 type DB struct {

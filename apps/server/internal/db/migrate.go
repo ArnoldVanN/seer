@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/migrations/postgres"
+	"github.com/ArnoldVanN/seer/apps/server/migrations/postgres"
 )
 
 const revisionsTable = "seer_schema_migrations"

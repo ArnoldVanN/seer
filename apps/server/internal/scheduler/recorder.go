@@ -10,14 +10,14 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/rs/zerolog/log"
 
-	"github.com/seer-status/seer/apps/server/ent"
-	"github.com/seer-status/seer/apps/server/ent/endpointstate"
-	"github.com/seer-status/seer/apps/server/ent/result"
-	"github.com/seer-status/seer/apps/server/internal/checker"
-	"github.com/seer-status/seer/apps/server/internal/config"
-	"github.com/seer-status/seer/apps/server/internal/db"
-	"github.com/seer-status/seer/apps/server/internal/events"
-	"github.com/seer-status/seer/apps/server/internal/notify"
+	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpointstate"
+	"github.com/ArnoldVanN/seer/apps/server/ent/result"
+	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
+	"github.com/ArnoldVanN/seer/apps/server/internal/config"
+	"github.com/ArnoldVanN/seer/apps/server/internal/db"
+	"github.com/ArnoldVanN/seer/apps/server/internal/events"
+	"github.com/ArnoldVanN/seer/apps/server/internal/notify"
 )
 
 // Recorder stores results and applies state transitions.
