@@ -1,5 +1,5 @@
-// Package admin implements the admin API: sites, dashboards and endpoints
-// created at runtime by another service. Rows written here are owned by the
+// Package admin implements the admin API: sites, dashboards, endpoints and
+// alert targets created at runtime by another service. Rows written here are owned by the
 // API. Config sync leaves them alone, and this package never changes rows the
 // config owns: every write is guarded by source = 'api' in the database.
 package admin
@@ -373,7 +373,12 @@ func (s *Service) PutEndpoint(ctx context.Context, req *connect.Request[adminv1.
 		}
 	}
 	e.ApplyDefaults()
-	if errs := e.Validate("endpoint", s.Alerting); len(errs) > 0 {
+	errs := e.Validate("endpoint", s.Alerting)
+	missing, err := s.missingTargets(ctx, e)
+	if err != nil {
+		return nil, err
+	}
+	if errs = append(errs, missing...); len(errs) > 0 {
 		return nil, invalid(errs)
 	}
 

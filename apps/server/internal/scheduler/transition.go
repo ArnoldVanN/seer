@@ -47,6 +47,7 @@ func next(s state, out checker.Outcome, spec *config.Endpoint) (state, []notify.
 	for i, a := range spec.Alerts {
 		ev := notify.Event{
 			AlertType:    a.Type,
+			Target:       a.Target,
 			EndpointKey:  spec.Key,
 			EndpointName: spec.Name,
 			Group:        spec.Group,

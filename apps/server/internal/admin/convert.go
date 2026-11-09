@@ -44,6 +44,7 @@ func endpointFromProto(in *adminv1.Endpoint) config.Endpoint {
 			SuccessThreshold: int(a.SuccessThreshold),
 			SendOnResolved:   a.SendOnResolved,
 			Description:      a.Description,
+			Target:           a.Target,
 		})
 	}
 	return e
@@ -84,6 +85,7 @@ func endpointToProto(e config.Endpoint) *adminv1.Endpoint {
 			SuccessThreshold: int32(a.SuccessThreshold),
 			SendOnResolved:   a.SendOnResolved,
 			Description:      a.Description,
+			Target:           a.Target,
 		})
 	}
 	return out

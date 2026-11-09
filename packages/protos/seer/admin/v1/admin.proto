@@ -5,7 +5,7 @@ package seer.admin.v1;
 import "google/protobuf/duration.proto";
 import "seer/common/v1/common.proto";
 
-// Creates and removes sites, dashboards and endpoints at runtime, for a
+// Creates and removes sites, dashboards, endpoints and alert targets at runtime, for a
 // service that manages them from its own database. Served on the private
 // port behind an admin API key (server.adminApiKeys).
 //
@@ -27,6 +27,11 @@ service AdminService {
   rpc PutEndpoint(PutEndpointRequest) returns (PutEndpointResponse);
   rpc DeleteEndpoint(DeleteEndpointRequest) returns (DeleteEndpointResponse);
   rpc ListEndpoints(ListEndpointsRequest) returns (ListEndpointsResponse);
+
+  rpc PutAlertTarget(PutAlertTargetRequest) returns (PutAlertTargetResponse);
+  // Alerts that name a deleted target are dropped when they're sent.
+  rpc DeleteAlertTarget(DeleteAlertTargetRequest) returns (DeleteAlertTargetResponse);
+  rpc ListAlertTargets(ListAlertTargetsRequest) returns (ListAlertTargetsResponse);
 }
 
 enum Source {
@@ -37,7 +42,8 @@ enum Source {
   SOURCE_API = 2;
 }
 
-// What a List returns per row: enough to find rows to delete.
+// What a List returns per row: enough to find rows to delete. Alert targets
+// only come from this service, so theirs are all SOURCE_API.
 message Item {
   string key = 1;
   Source source = 2;
@@ -153,13 +159,46 @@ message DNSQuery {
 }
 
 message Alert {
-  // webhook, slack, discord or email.
+  // A provider under alerting in the config file: webhook, slack, discord or
+  // email. Leave empty when target is set.
   string type = 1;
   int32 failure_threshold = 2;
   int32 success_threshold = 3;
   // Unset sends on resolve.
   optional bool send_on_resolved = 4;
   string description = 5;
+  // Key of an alert target from PutAlertTarget, instead of a type. It must
+  // exist when the endpoint is put.
+  string target = 6;
+}
+
+// A named place to send alerts, so each site can have its own.
+message AlertTarget {
+  string key = 1;
+  oneof kind {
+    WebhookTarget webhook = 2;
+    ChatTarget slack = 3;
+    ChatTarget discord = 4;
+    EmailTarget email = 5;
+  }
+}
+
+// Receives each alert as JSON.
+message WebhookTarget {
+  string url = 1;
+  // Defaults to POST.
+  string method = 2;
+  map<string, string> headers = 3;
+}
+
+// A Slack or Discord incoming webhook.
+message ChatTarget {
+  string webhook_url = 1;
+}
+
+// Sent through the server under alerting.email in the config file.
+message EmailTarget {
+  repeated string to = 1;
 }
 
 message PutSiteRequest {
@@ -224,4 +263,24 @@ message ListEndpointsRequest {}
 
 message ListEndpointsResponse {
   repeated Item endpoints = 1;
+}
+
+message PutAlertTargetRequest {
+  AlertTarget target = 1;
+}
+
+message PutAlertTargetResponse {
+  AlertTarget target = 1;
+}
+
+message DeleteAlertTargetRequest {
+  string key = 1;
+}
+
+message DeleteAlertTargetResponse {}
+
+message ListAlertTargetsRequest {}
+
+message ListAlertTargetsResponse {
+  repeated Item targets = 1;
 }

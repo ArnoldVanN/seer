@@ -259,6 +259,47 @@ sites:
 		}
 	})
 
+	t.Run("alert targets", func(t *testing.T) {
+		for name, tg := range map[string]*adminv1.AlertTarget{
+			"no kind":            {Key: "t"},
+			"bad url":            {Key: "t", Kind: &adminv1.AlertTarget_Slack{Slack: &adminv1.ChatTarget{WebhookUrl: "ftp://x"}}},
+			"email without smtp": {Key: "t", Kind: &adminv1.AlertTarget_Email{Email: &adminv1.EmailTarget{To: []string{"ops@game.test"}}}},
+		} {
+			_, err := c.PutAlertTarget(ctx, connect.NewRequest(&adminv1.PutAlertTargetRequest{Target: tg}))
+			if code(err) != connect.CodeInvalidArgument {
+				t.Errorf("%s: %v, want invalid argument", name, err)
+			}
+		}
+
+		withAlert := func(a *adminv1.Alert) error {
+			_, err := c.PutEndpoint(ctx, connect.NewRequest(&adminv1.PutEndpointRequest{Endpoint: &adminv1.Endpoint{
+				Key: "aq-2-eu", Site: "aq-2", Alerts: []*adminv1.Alert{a},
+			}}))
+			return err
+		}
+		if err := withAlert(&adminv1.Alert{Target: "aq-2-slack"}); code(err) != connect.CodeInvalidArgument {
+			t.Errorf("unknown target: %v, want invalid argument", err)
+		}
+		if _, err := c.PutAlertTarget(ctx, connect.NewRequest(&adminv1.PutAlertTargetRequest{Target: &adminv1.AlertTarget{
+			Key: "aq-2-slack", Kind: &adminv1.AlertTarget_Slack{Slack: &adminv1.ChatTarget{WebhookUrl: "https://hooks.slack.test/x"}},
+		}})); err != nil {
+			t.Fatal(err)
+		}
+		if err := withAlert(&adminv1.Alert{Type: "webhook", Target: "aq-2-slack"}); code(err) != connect.CodeInvalidArgument {
+			t.Errorf("type and target: %v, want invalid argument", err)
+		}
+		if err := withAlert(&adminv1.Alert{Target: "aq-2-slack"}); err != nil {
+			t.Errorf("known target: %v", err)
+		}
+		list, err := c.ListAlertTargets(ctx, connect.NewRequest(&adminv1.ListAlertTargetsRequest{}))
+		if err != nil || len(list.Msg.Targets) != 1 || list.Msg.Targets[0].Key != "aq-2-slack" {
+			t.Errorf("targets = %v, %v", list.Msg.GetTargets(), err)
+		}
+		if _, err := c.DeleteAlertTarget(ctx, connect.NewRequest(&adminv1.DeleteAlertTargetRequest{Key: "aq-2-slack"})); err != nil {
+			t.Error(err)
+		}
+	})
+
 	t.Run("deleting a missing key is fine", func(t *testing.T) {
 		if _, err := c.DeleteSite(ctx, connect.NewRequest(&adminv1.DeleteSiteRequest{Key: "nope"})); err != nil {
 			t.Error(err)

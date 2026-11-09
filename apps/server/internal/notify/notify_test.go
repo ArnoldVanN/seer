@@ -244,3 +244,48 @@ func TestDispatcherRetriesInOrder(t *testing.T) {
 		t.Errorf("left in queue: %v, %v; want only the unconfigured one", types, err)
 	}
 }
+
+func TestDispatcherSendsToAlertTargets(t *testing.T) {
+	d := testdb.New(t)
+	ctx := context.Background()
+	ep := d.Ent.Endpoint.Create().SetKey("fleet").SetName("Fleet").SetType("push").SetIntervalSeconds(60).SetSpec([]byte("{}")).SaveX(ctx)
+
+	url, got := capture(t, http.StatusOK)
+	spec, _ := json.Marshal(config.AlertTarget{Type: "webhook", URL: url, Headers: map[string]string{"X-Org": "42"}})
+	d.Ent.AlertTarget.Create().SetKey("org-42").SetSpec(spec).ExecX(ctx)
+
+	toTarget := Event{Kind: Triggered, Target: "org-42", EndpointKey: "fleet", EndpointName: "Fleet", At: ev.At}
+	gone := toTarget
+	gone.Target = "deleted"
+	tx, err := d.Ent.Tx(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Enqueue(ctx, tx, ep.ID, []Event{toTarget, gone}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if types := d.Ent.Notification.Query().Select("alert_type").StringsX(ctx); len(types) != 2 || types[0] != "target:org-42" {
+		t.Fatalf("queued as %v, want target routes", types)
+	}
+
+	// A replica with no providers in its config still sends to targets.
+	disp := New(d, config.Alerting{})
+	for range 2 {
+		if sent, err := disp.sendNext(ctx); err != nil || !sent {
+			t.Fatalf("sendNext = %v, %v", sent, err)
+		}
+	}
+	h, body := got()
+	if h.Get("X-Org") != "42" || h.Get("X-Method") != "POST" {
+		t.Errorf("headers = %v, want the target's, with POST", h)
+	}
+	if body["alertType"] != "webhook" || body["target"] != "org-42" || body["endpointKey"] != "fleet" {
+		t.Errorf("body = %v", body)
+	}
+	if n := d.Ent.Notification.Query().CountX(ctx); n != 0 {
+		t.Errorf("%d notifications left; the one for a deleted target should be dropped", n)
+	}
+}

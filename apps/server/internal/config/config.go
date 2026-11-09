@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -116,6 +117,53 @@ type Email struct {
 	AllowPlaintext bool     `yaml:"allowPlaintext"`
 }
 
+// AlertTarget is a named place to send alerts, created through the admin
+// API, so each site can have its own. Email targets send through the
+// server under alerting.email, to their own recipients.
+type AlertTarget struct {
+	Type string `json:"type"`
+	// Webhook URL, or a Slack or Discord incoming webhook URL.
+	URL     string            `json:"url,omitempty"`
+	Method  string            `json:"method,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+	To      []string          `json:"to,omitempty"`
+}
+
+// Validate checks a target against the providers in alerting.
+func (t AlertTarget) Validate(alerting Alerting) []error {
+	var errs []error
+	switch t.Type {
+	case "webhook", "slack", "discord":
+		if u, err := url.Parse(t.URL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			errs = append(errs, fmt.Errorf("%s target: url must be an http(s) URL", t.Type))
+		}
+		if len(t.To) > 0 {
+			errs = append(errs, fmt.Errorf("%s target: to is for email targets", t.Type))
+		}
+	case "email":
+		if alerting.Email == nil {
+			errs = append(errs, errors.New("email target: needs alerting.email in the config file to send through"))
+		}
+		if len(t.To) == 0 {
+			errs = append(errs, errors.New("email target: to is required"))
+		}
+		for _, addr := range t.To {
+			if _, err := mail.ParseAddress(addr); err != nil {
+				errs = append(errs, fmt.Errorf("email target: %q: %w", addr, err))
+			}
+		}
+		if t.URL != "" {
+			errs = append(errs, errors.New("email target: url is for webhook, slack and discord targets"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("alert target type must be one of %s", strings.Join(AlertTypes, ", ")))
+	}
+	if t.Type != "webhook" && (t.Method != "" || len(t.Headers) > 0) {
+		errs = append(errs, errors.New("method and headers are for webhook targets"))
+	}
+	return errs
+}
+
 // AlertTypes are the provider names an alert's type can take.
 var AlertTypes = []string{"webhook", "slack", "discord", "email"}
 
@@ -206,7 +254,10 @@ type DNSQuery struct {
 }
 
 type Alert struct {
-	Type             string `yaml:"type" json:"type"`
+	Type string `yaml:"type" json:"type"`
+	// An alert target created through the admin API, instead of a provider
+	// under alerting. Not available in the config file.
+	Target           string `yaml:"-" json:"target,omitempty"`
 	FailureThreshold int    `yaml:"failureThreshold" json:"failureThreshold"`
 	SuccessThreshold int    `yaml:"successThreshold" json:"successThreshold"`
 	SendOnResolved   *bool  `yaml:"sendOnResolved" json:"sendOnResolved,omitempty"`
@@ -546,6 +597,12 @@ func (e Endpoint) Validate(where string, alerting Alerting) []error {
 	}
 	for _, a := range e.Alerts {
 		switch {
+		case a.Target != "" && a.Type != "":
+			errs = append(errs, fmt.Errorf("%s: an alert has a type or a target, not both", where))
+		case a.Target != "":
+			if !ValidKey(a.Target) {
+				errs = append(errs, fmt.Errorf("%s: invalid alert target %q", where, a.Target))
+			}
 		case a.Type == "":
 			errs = append(errs, fmt.Errorf("%s: alert type is required", where))
 		case !slices.Contains(AlertTypes, a.Type):

@@ -6,17 +6,20 @@
 package notify
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/alerttarget"
 	"github.com/ArnoldVanN/seer/apps/server/internal/config"
 	"github.com/ArnoldVanN/seer/apps/server/internal/db"
 )
@@ -29,8 +32,11 @@ const (
 )
 
 type Event struct {
-	Kind         Kind      `json:"kind"`
-	AlertType    string    `json:"alertType"`
+	Kind      Kind   `json:"kind"`
+	AlertType string `json:"alertType"`
+	// Set when the alert names an alert target instead of a provider.
+	// AlertType is then filled in from the target when it's sent.
+	Target       string    `json:"target,omitempty"`
 	EndpointKey  string    `json:"endpointKey"`
 	EndpointName string    `json:"endpointName"`
 	Group        string    `json:"group,omitempty"`
@@ -77,6 +83,19 @@ var (
 	maxBackoff   = 10 * time.Minute
 )
 
+// targetPrefix marks queued events for an alert target rather than a
+// provider from the config file.
+const targetPrefix = "target:"
+
+// route is what a queued event is sent through: a provider name, or an
+// alert target.
+func route(ev Event) string {
+	if ev.Target != "" {
+		return targetPrefix + ev.Target
+	}
+	return ev.AlertType
+}
+
 // Enqueue queues evs in tx. The caller commits it with the state change.
 func Enqueue(ctx context.Context, tx *ent.Tx, endpointID int, evs []Event) error {
 	for _, ev := range evs {
@@ -86,7 +105,7 @@ func Enqueue(ctx context.Context, tx *ent.Tx, endpointID int, evs []Event) error
 		}
 		if err := tx.Notification.Create().
 			SetEndpointID(endpointID).
-			SetAlertType(ev.AlertType).
+			SetAlertType(route(ev)).
 			SetEvent(b).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("queue notification: %w", err)
@@ -96,15 +115,17 @@ func Enqueue(ctx context.Context, tx *ent.Tx, endpointID int, evs []Event) error
 }
 
 // Dispatcher sends queued events through the providers this replica has
-// configured.
+// configured, and to alert targets.
 type Dispatcher struct {
 	db        *db.DB
 	providers map[string]Notifier
-	wake      chan struct{}
+	// The server email targets send through, if any.
+	smtp *config.Email
+	wake chan struct{}
 }
 
 func New(d *db.DB, a config.Alerting) *Dispatcher {
-	disp := &Dispatcher{db: d, providers: map[string]Notifier{}, wake: make(chan struct{}, 1)}
+	disp := &Dispatcher{db: d, providers: map[string]Notifier{}, smtp: a.Email, wake: make(chan struct{}, 1)}
 	if a.Webhook != nil {
 		disp.Register("webhook", &webhook{cfg: *a.Webhook})
 	}
@@ -139,9 +160,6 @@ func (d *Dispatcher) Wake() {
 // Run sends queued events until ctx is done. A send in progress finishes
 // first.
 func (d *Dispatcher) Run(ctx context.Context) {
-	if len(d.providers) == 0 {
-		return
-	}
 	t := time.NewTicker(pollInterval)
 	defer t.Stop()
 	for {
@@ -163,12 +181,13 @@ func (d *Dispatcher) Run(ctx context.Context) {
 	}
 }
 
-// claimQuery locks the oldest due event this replica can send. Only the
+// claimQuery locks the oldest due event this replica can send: one for a
+// provider it has, or for an alert target. Only the
 // first queued event per endpoint and provider qualifies, so a resolve can't
 // overtake its trigger while that's being retried or sent by another worker.
 const claimQuery = `
 SELECT id, alert_type, event, attempts FROM notifications n
-WHERE next_attempt_at <= $1 AND alert_type = ANY($2)
+WHERE next_attempt_at <= $1 AND (alert_type = ANY($2) OR alert_type LIKE 'target:%')
   AND NOT EXISTS (
     SELECT 1 FROM notifications o
     WHERE o.endpoint_id = n.endpoint_id AND o.alert_type = n.alert_type AND o.id < n.id)
@@ -216,9 +235,30 @@ func (d *Dispatcher) sendNext(ctx context.Context) (bool, error) {
 	}
 
 	l := log.With().Str("type", typ).Str("kind", string(ev.Kind)).Str("endpoint", ev.EndpointKey).Logger()
-	sctx, cancel := context.WithTimeout(ctx, timeout)
-	sendErr := d.providers[typ].Notify(sctx, ev)
-	cancel()
+	n, ok := d.providers[typ]
+	var sendErr error
+	if key, isTarget := strings.CutPrefix(typ, targetPrefix); isTarget {
+		var t *config.AlertTarget
+		t, err = d.target(ctx, key)
+		if err != nil {
+			return false, err
+		}
+		if t == nil {
+			l.Warn().Msg("alert target no longer exists; dropping notification")
+			if _, err := tx.ExecContext(ctx, `DELETE FROM notifications WHERE id = $1`, id); err != nil {
+				return false, err
+			}
+			return true, tx.Commit()
+		}
+		ev.AlertType = t.Type
+		n, sendErr = d.targetNotifier(*t)
+		ok = sendErr == nil
+	}
+	if ok {
+		sctx, cancel := context.WithTimeout(ctx, timeout)
+		sendErr = n.Notify(sctx, ev)
+		cancel()
+	}
 	attempts++
 	switch {
 	case sendErr == nil:
@@ -238,6 +278,42 @@ func (d *Dispatcher) sendNext(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return true, tx.Commit()
+}
+
+// target loads an alert target as it is now, so a changed URL or address
+// applies to events already queued. Nil if it was deleted.
+func (d *Dispatcher) target(ctx context.Context, key string) (*config.AlertTarget, error) {
+	row, err := d.db.Ent.AlertTarget.Query().Where(alerttarget.Key(key)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var t config.AlertTarget
+	if err := json.Unmarshal(row.Spec, &t); err != nil {
+		return nil, fmt.Errorf("alert target %s: %w", key, err)
+	}
+	return &t, nil
+}
+
+func (d *Dispatcher) targetNotifier(t config.AlertTarget) (Notifier, error) {
+	switch t.Type {
+	case "webhook":
+		return &webhook{cfg: config.Webhook{URL: t.URL, Method: cmp.Or(t.Method, "POST"), Headers: t.Headers}}, nil
+	case "slack":
+		return &slack{url: t.URL}, nil
+	case "discord":
+		return &discord{url: t.URL}, nil
+	case "email":
+		if d.smtp == nil {
+			return nil, errors.New("email target, but alerting.email isn't configured")
+		}
+		cfg := *d.smtp
+		cfg.To = t.To
+		return &email{cfg: cfg}, nil
+	}
+	return nil, fmt.Errorf("unknown alert target type %q", t.Type)
 }
 
 func truncate(s string, n int) string {

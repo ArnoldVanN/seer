@@ -55,3 +55,14 @@ func TestNextThresholds(t *testing.T) {
 		t.Fatalf("resolve fired twice: %+v", all)
 	}
 }
+
+func TestNextCarriesAlertTarget(t *testing.T) {
+	spec := &config.Endpoint{
+		Key: "fleet", FailureThreshold: 1, SuccessThreshold: 1,
+		Alerts: []config.Alert{{Target: "org-42", FailureThreshold: 1, SuccessThreshold: 1}},
+	}
+	_, evs := next(state{Status: "up"}, checker.Outcome{Success: false, CheckedAt: time.Now()}, spec)
+	if len(evs) != 1 || evs[0].Target != "org-42" || evs[0].AlertType != "" {
+		t.Fatalf("events = %+v, want one for target org-42", evs)
+	}
+}

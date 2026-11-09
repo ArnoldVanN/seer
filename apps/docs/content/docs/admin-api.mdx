@@ -1,6 +1,6 @@
 ---
 title: Admin API
-description: Create sites, dashboards and endpoints at runtime from another service.
+description: Create sites, dashboards, endpoints and alert targets at runtime from another service.
 ---
 
 The config file suits what you manage by hand or through GitOps. When another
@@ -40,6 +40,7 @@ the API's row stays and config sync logs a warning.
 | `DeleteSite`, `DeleteDashboard` | Remove. A missing key is not an error. |
 | `DeleteEndpoint` | Disables the endpoint and keeps its history; a later put brings it back. `purge: true` deletes it with its history. |
 | `ListSites`, `ListDashboards`, `ListEndpoints` | Keys, owner and site of every row, to find what to delete. |
+| `PutAlertTarget`, `DeleteAlertTarget`, `ListAlertTargets` | Named places to send alerts. See below. |
 
 Definitions take the same fields as the config file. Sites created through
 the API come after the config's, so the config's first site still answers
@@ -65,6 +66,31 @@ resp, err := admin.PutEndpoint(ctx, connect.NewRequest(&adminv1.PutEndpointReque
 }))
 token := resp.Msg.Endpoint.Token
 ```
+
+## Alert targets
+
+In the config file, an alert's `type` picks one of the providers under
+`alerting`, shared by every endpoint. An alert target is a named destination
+of its own, so each site can send its alerts somewhere else: a webhook, a
+Slack or Discord incoming webhook, or email addresses. Email targets send
+through the server under `alerting.email`, which must be configured.
+
+Create the target, then name it in an endpoint's alert instead of a type:
+
+```go
+admin.PutAlertTarget(ctx, connect.NewRequest(&adminv1.PutAlertTargetRequest{
+	Target: &adminv1.AlertTarget{
+		Key:  "acme-42-slack",
+		Kind: &adminv1.AlertTarget_Slack{Slack: &adminv1.ChatTarget{WebhookUrl: slackURL}},
+	},
+}))
+// In PutEndpoint:
+Alerts: []*adminv1.Alert{{Target: "acme-42-slack", FailureThreshold: 2}},
+```
+
+A target must exist when an endpoint naming it is put. Alerts are sent to the
+target as it is when they go out, so changing it applies to alerts already
+queued, and alerts for a deleted target are dropped.
 
 ## Kubernetes
 
