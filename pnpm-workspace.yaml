@@ -6,3 +6,7 @@ onlyBuiltDependencies:
   - "@bufbuild/buf"
   - esbuild
   - sharp
+
+overrides:
+  compression@<1.8.2: ^1.8.2
+  minimatch@>=7 <11.0.1: ^11.0.1
