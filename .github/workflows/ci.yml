@@ -64,6 +64,33 @@ jobs:
         working-directory: apps/web
         run: pnpm build
 
+  codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @seer/protos
+      - name: Install protoc plugins
+        run: grep -oP '(?<=go install )\S+' scripts/gen.sh | xargs -n1 go install
+      - name: Generate
+        run: ./scripts/gen.sh
+      - name: Check for drift
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            git diff
+            echo "::error::Generated code is out of date. Run pnpm gen and commit the result."
+            exit 1
+          fi
+
   docs:
     runs-on: ubuntu-latest
     steps:
