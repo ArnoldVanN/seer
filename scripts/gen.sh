@@ -4,8 +4,8 @@ set -euo pipefail
 # Regenerates protobuf code (Go + TS) and ent code, in parallel.
 #
 # Needs buf, protoc-gen-go and protoc-gen-connect-go on PATH:
-#   go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-#   go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+#   go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+#   go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.20.0
 #   (buf comes from the @bufbuild/buf dev dependency, or brew/go install)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

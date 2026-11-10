@@ -9,9 +9,7 @@ COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile --filter web... --filter @seer/protos
 
 COPY packages/protos/ packages/protos/
-RUN cd packages/protos && rm -rf gen \
- && ./node_modules/.bin/buf generate --template buf.gen.ts.yaml \
- && pnpm build
+RUN cd packages/protos && pnpm build
 
 COPY apps/web/ apps/web/
 ENV NEXT_TELEMETRY_DISABLED=1

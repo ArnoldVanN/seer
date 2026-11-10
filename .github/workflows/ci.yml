@@ -32,18 +32,9 @@ jobs:
       - uses: bufbuild/buf-action@v1
         with:
           setup_only: true
-      - name: Install protoc plugins
-        run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.20.0
-      - name: Generate
+      - name: Lint protos
         working-directory: packages/protos
-        run: |
-          buf lint
-          buf generate --template buf.gen.go.yaml
-      - name: Generate ent
-        working-directory: apps/server
-        run: go generate ./ent
+        run: buf lint
       - name: Vet
         working-directory: apps/server
         run: go vet ./...
@@ -63,9 +54,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Generate TS protos
+      - name: Build protos
         working-directory: packages/protos
-        run: ./node_modules/.bin/buf generate --template buf.gen.ts.yaml && pnpm build
+        run: pnpm build
       - name: Lint
         working-directory: apps/web
         run: pnpm lint
