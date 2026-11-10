@@ -1,0 +1,38 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigestsToSemver",
+    "group:allNonMajor",
+  ],
+  timezone: "Europe/Brussels",
+  schedule: ["before 6am on monday"],
+  osvVulnerabilityAlerts: true,
+  vulnerabilityAlerts: {
+    schedule: ["at any time"],
+  },
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["before 6am on the first day of the month"],
+  },
+  postUpdateOptions: ["gomodTidy"],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "protoc plugin pins in the codegen script",
+      managerFilePatterns: ["/^scripts/gen\\.sh$/"],
+      matchStrings: ["go install (?<depName>[^@\\s]+?)(?:/cmd/[^@\\s]+)?@(?<currentValue>v[^\\s]+)"],
+      datasourceTemplate: "go",
+    },
+    {
+      customType: "regex",
+      description: "GitHub release downloads in workflows",
+      managerFilePatterns: ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      matchStrings: [
+        "https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/(?<currentValue>[^/]+)/",
+      ],
+      datasourceTemplate: "github-releases",
+    },
+  ],
+}
