@@ -1,5 +1,15 @@
 # Changelog
 
+## [seer v0.1.3] - 2026-11-10
+
+### Bug Fixes
+
+- **deps:** patch vulnerable dev dependencies (a1aa801)
+
+### Other
+
+- **protos:** commit generated protobuf and ent code (4e353da)
+
 ## [seer v0.1.2] - 2026-11-09
 
 ### Features
