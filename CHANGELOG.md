@@ -1,5 +1,17 @@
 # Changelog
 
+## [seer v0.1.4] - 2026-11-20
+
+### Bug Fixes
+
+- **deps:** update dependency next to v16.4.5 [security] (#17) (e14d3c0)
+
+### Other
+
+- **deps:** update pnpm to v10.34.5 [security] (#13) (c6808d1)
+- **deps:** update module golang.org/x/net to v0.62.0 [security] (#12) (acafd9e)
+- **deps:** update module github.com/andybalholm/brotli to v1.2.7 [security] (#11) (b251888)
+
 ## [seer v0.1.3] - 2026-11-10
 
 ### Bug Fixes
