@@ -21,20 +21,20 @@ jobs:
     outputs:
       version: ${{ steps.result.outputs.version }}
     steps:
-      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         id: app-token
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_KEY }}
 
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Run Monotrack CLI
         id: monotrack
-        uses: arnoldvann/monotrack@9196b355217b0a6cecc969cebdcf17041d44334e # v0
+        uses: arnoldvann/monotrack@0835264243f76d562170ff0c460d2367e0488faa # v0.10.3
         with:
           command: tag bump
           args: -o json
@@ -64,10 +64,10 @@ jobs:
     if: needs.monotrack.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.monotrack.outputs.version }}
-      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
       - name: Package and push
         env:
           VERSION: ${{ needs.monotrack.outputs.version }}
@@ -81,7 +81,7 @@ jobs:
     needs: [monotrack, images, chart]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.monotrack.outputs.version }}
       - name: Create GitHub release
