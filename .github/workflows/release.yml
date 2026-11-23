@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Monotrack CLI
         id: monotrack
-        uses: arnoldvann/monotrack@9196b355217b0a6cecc969cebdcf17041d44334e # v0
+        uses: arnoldvann/monotrack@0835264243f76d562170ff0c460d2367e0488faa # v0
         with:
           command: tag bump
           args: -o json
