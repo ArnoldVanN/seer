@@ -1,5 +1,11 @@
 # Changelog
 
+## [seer v0.1.5] - 2026-11-23
+
+### Bug Fixes
+
+- **deps:** update all non-major dependencies (#16) (f386c37)
+
 ## [seer v0.1.4] - 2026-11-20
 
 ### Bug Fixes
