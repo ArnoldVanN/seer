@@ -49,6 +49,7 @@ var (
 		{Name: "description", Type: field.TypeString, Default: ""},
 		{Name: "default_range", Type: field.TypeString, Default: ""},
 		{Name: "custom_css", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "unlisted", Type: field.TypeBool, Default: false},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"config", "api"}, Default: "config"},
 	}
 	// DashboardsTable holds the schema information for the "dashboards" table.

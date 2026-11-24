@@ -24,7 +24,8 @@ can run as many as you want:
 - **Alerts** to webhooks, Slack, Discord and email, queued in Postgres so a
   worker dying mid-send doesn't lose one.
 - **Public and private dashboards** from one deployment. Private ones sit
-  under `/internal`, behind OIDC or an admin login.
+  under `/internal`, behind OIDC or an admin login. Unlisted ones get no tab
+  but keep their page and their endpoints' badges.
 - **Several status pages, one deployment.** Each site has its own hostnames,
   branding and dashboards; endpoints are shared and checked once.
 - **Live updates** streamed to the browser, from any replica.
@@ -155,6 +156,8 @@ tags `vX.Y.Z` and publishes the images, the Helm chart
 - [ ] Config editor in the UI: edits are API-owned rows like the write API's, with YAML export and optionally a PR to a GitOps repo
 - [ ] Multiple config files or a config directory, merged into one config
 - [ ] Map an OIDC claim to groups, so `allowedGroups` can follow an identity provider's claim
+- [ ] An opt-in `paused` flag for endpoints: not checked, but still shown on dashboards and badges as paused. Separate from `enabled: false`, which also marks deleted and removed endpoints
+- [ ] Give a re-enabled push endpoint a full interval plus grace before its first missed ping
 - [ ] Keep session groups current: refresh them with the provider's refresh token, and end sessions on OIDC back-channel logout
 - [ ] User management in the UI: who has signed in and when, force sign-out, block users
 - [ ] Tests: OIDC against a real provider, Gateway API on kind, Playwright, scale

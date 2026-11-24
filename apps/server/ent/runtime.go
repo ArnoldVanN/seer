@@ -61,6 +61,10 @@ func init() {
 	dashboardDescCustomCSS := dashboardFields[10].Descriptor()
 	// dashboard.DefaultCustomCSS holds the default value on creation for the custom_css field.
 	dashboard.DefaultCustomCSS = dashboardDescCustomCSS.Default.(string)
+	// dashboardDescUnlisted is the schema descriptor for unlisted field.
+	dashboardDescUnlisted := dashboardFields[11].Descriptor()
+	// dashboard.DefaultUnlisted holds the default value on creation for the unlisted field.
+	dashboard.DefaultUnlisted = dashboardDescUnlisted.Default.(bool)
 	endpointFields := schema.Endpoint{}.Fields()
 	_ = endpointFields
 	// endpointDescKey is the schema descriptor for key field.

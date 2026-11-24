@@ -39,6 +39,8 @@ type Dashboard struct {
 	DefaultRange string `json:"default_range,omitempty"`
 	// CustomCSS holds the value of the "custom_css" field.
 	CustomCSS string `json:"custom_css,omitempty"`
+	// Left out of the dashboard list but still viewable by URL, and still counts for badges and endpoint pages.
+	Unlisted bool `json:"unlisted,omitempty"`
 	// What owns the row: config sync only touches config rows, the write API only api rows.
 	Source       dashboard.Source `json:"source,omitempty"`
 	selectValues sql.SelectValues
@@ -51,6 +53,8 @@ func (*Dashboard) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case dashboard.FieldGroups, dashboard.FieldEndpointKeys, dashboard.FieldAllowedGroups:
 			values[i] = new([]byte)
+		case dashboard.FieldUnlisted:
+			values[i] = new(sql.NullBool)
 		case dashboard.FieldID, dashboard.FieldPosition:
 			values[i] = new(sql.NullInt64)
 		case dashboard.FieldKey, dashboard.FieldTitle, dashboard.FieldVisibility, dashboard.FieldSite, dashboard.FieldDescription, dashboard.FieldDefaultRange, dashboard.FieldCustomCSS, dashboard.FieldSource:
@@ -148,6 +152,12 @@ func (_m *Dashboard) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CustomCSS = value.String
 			}
+		case dashboard.FieldUnlisted:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field unlisted", values[i])
+			} else if value.Valid {
+				_m.Unlisted = value.Bool
+			}
 		case dashboard.FieldSource:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field source", values[i])
@@ -222,6 +232,9 @@ func (_m *Dashboard) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("custom_css=")
 	builder.WriteString(_m.CustomCSS)
+	builder.WriteString(", ")
+	builder.WriteString("unlisted=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Unlisted))
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Source))

@@ -200,6 +200,9 @@ type Dashboard struct {
 	// CSS for this dashboard's page, after the site's.
 	CustomCSS     string `yaml:"customCss" json:"customCss,omitempty"`
 	CustomCSSFile string `yaml:"customCssFile" json:"customCssFile,omitempty"`
+	// Left out of the dashboard list, so it gets no tab and is never the
+	// home page. Its page and its endpoints' badges still work.
+	Unlisted bool `yaml:"unlisted" json:"unlisted,omitempty"`
 
 	// Key of the site that defines it; empty when defined at the top level.
 	Site string `yaml:"-" json:"-"`
