@@ -71,6 +71,47 @@ The web app always runs as its own Deployment (`web.*`).
 Migrations run in a pre-upgrade Job (`migrations.job`). Pods also migrate on
 startup under a lock, which covers first installs.
 
+### Postgres with CloudNativePG
+
+If the [CloudNativePG](https://cloudnative-pg.io) operator runs in your
+cluster, you can create the database with the release. CNPG writes the
+connection string to the `<cluster>-app` secret under `uri`, so point
+`database.existingSecret` at it:
+
+```yaml title="values.yaml"
+database:
+  existingSecret: seer-db-app
+  existingSecretKey: uri
+
+extraObjects:
+  - apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    metadata:
+      name: seer-db
+      annotations:
+        helm.sh/resource-policy: keep
+    spec:
+      instances: 3
+      storage:
+        size: 5Gi
+      bootstrap:
+        initdb:
+          database: seer
+          owner: seer
+```
+
+On first install, Seer pods wait in `CreateContainerConfigError` until CNPG has
+created the secret, and may restart until the primary accepts connections.
+They start on their own once it does.
+
+<Callout type="warn">
+  A CNPG cluster's volumes are deleted with the `Cluster`. The
+  `helm.sh/resource-policy: keep` annotation stops `helm uninstall` from
+  removing it, so delete it yourself when you're done with the data.
+  Configure [backups](https://cloudnative-pg.io/documentation/current/backup/)
+  before relying on it.
+</Callout>
+
 ## Routing
 
 Only Gateway API is templated. With `httpRoute.directRpc` (the default) the
