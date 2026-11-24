@@ -35,6 +35,8 @@ const (
 	FieldDefaultRange = "default_range"
 	// FieldCustomCSS holds the string denoting the custom_css field in the database.
 	FieldCustomCSS = "custom_css"
+	// FieldUnlisted holds the string denoting the unlisted field in the database.
+	FieldUnlisted = "unlisted"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
 	// Table holds the table name of the dashboard in the database.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldDescription,
 	FieldDefaultRange,
 	FieldCustomCSS,
+	FieldUnlisted,
 	FieldSource,
 }
 
@@ -79,6 +82,8 @@ var (
 	DefaultDefaultRange string
 	// DefaultCustomCSS holds the default value on creation for the "custom_css" field.
 	DefaultCustomCSS string
+	// DefaultUnlisted holds the default value on creation for the "unlisted" field.
+	DefaultUnlisted bool
 )
 
 // Visibility defines the type for the "visibility" enum field.
@@ -176,6 +181,11 @@ func ByDefaultRange(opts ...sql.OrderTermOption) OrderOption {
 // ByCustomCSS orders the results by the custom_css field.
 func ByCustomCSS(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomCSS, opts...).ToFunc()
+}
+
+// ByUnlisted orders the results by the unlisted field.
+func ByUnlisted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUnlisted, opts...).ToFunc()
 }
 
 // BySource orders the results by the source field.

@@ -159,6 +159,9 @@ func (s *Service) ListDashboards(ctx context.Context, _ *connect.Request[commonv
 	}
 	resp := &commonv1.ListDashboardsResponse{}
 	for _, d := range ds {
+		if d.Unlisted {
+			continue
+		}
 		resp.Dashboards = append(resp.Dashboards, &commonv1.DashboardSummary{
 			Key: d.Key, Title: d.Title, Visibility: visibility(d.Visibility),
 		})

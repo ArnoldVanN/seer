@@ -202,6 +202,20 @@ func (_u *DashboardUpdate) SetNillableCustomCSS(v *string) *DashboardUpdate {
 	return _u
 }
 
+// SetUnlisted sets the "unlisted" field.
+func (_u *DashboardUpdate) SetUnlisted(v bool) *DashboardUpdate {
+	_u.mutation.SetUnlisted(v)
+	return _u
+}
+
+// SetNillableUnlisted sets the "unlisted" field if the given value is not nil.
+func (_u *DashboardUpdate) SetNillableUnlisted(v *bool) *DashboardUpdate {
+	if v != nil {
+		_u.SetUnlisted(*v)
+	}
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *DashboardUpdate) SetSource(v dashboard.Source) *DashboardUpdate {
 	_u.mutation.SetSource(v)
@@ -345,6 +359,9 @@ func (_u *DashboardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CustomCSS(); ok {
 		_spec.SetField(dashboard.FieldCustomCSS, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Unlisted(); ok {
+		_spec.SetField(dashboard.FieldUnlisted, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(dashboard.FieldSource, field.TypeEnum, value)
@@ -544,6 +561,20 @@ func (_u *DashboardUpdateOne) SetNillableCustomCSS(v *string) *DashboardUpdateOn
 	return _u
 }
 
+// SetUnlisted sets the "unlisted" field.
+func (_u *DashboardUpdateOne) SetUnlisted(v bool) *DashboardUpdateOne {
+	_u.mutation.SetUnlisted(v)
+	return _u
+}
+
+// SetNillableUnlisted sets the "unlisted" field if the given value is not nil.
+func (_u *DashboardUpdateOne) SetNillableUnlisted(v *bool) *DashboardUpdateOne {
+	if v != nil {
+		_u.SetUnlisted(*v)
+	}
+	return _u
+}
+
 // SetSource sets the "source" field.
 func (_u *DashboardUpdateOne) SetSource(v dashboard.Source) *DashboardUpdateOne {
 	_u.mutation.SetSource(v)
@@ -717,6 +748,9 @@ func (_u *DashboardUpdateOne) sqlSave(ctx context.Context) (_node *Dashboard, er
 	}
 	if value, ok := _u.mutation.CustomCSS(); ok {
 		_spec.SetField(dashboard.FieldCustomCSS, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Unlisted(); ok {
+		_spec.SetField(dashboard.FieldUnlisted, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(dashboard.FieldSource, field.TypeEnum, value)

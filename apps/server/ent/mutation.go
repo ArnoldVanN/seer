@@ -1028,6 +1028,7 @@ type DashboardMutation struct {
 	description          *string
 	default_range        *string
 	custom_css           *string
+	unlisted             *bool
 	source               *dashboard.Source
 	clearedFields        map[string]struct{}
 	done                 bool
@@ -1636,6 +1637,42 @@ func (m *DashboardMutation) ResetCustomCSS() {
 	m.custom_css = nil
 }
 
+// SetUnlisted sets the "unlisted" field.
+func (m *DashboardMutation) SetUnlisted(b bool) {
+	m.unlisted = &b
+}
+
+// Unlisted returns the value of the "unlisted" field in the mutation.
+func (m *DashboardMutation) Unlisted() (r bool, exists bool) {
+	v := m.unlisted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnlisted returns the old "unlisted" field's value of the Dashboard entity.
+// If the Dashboard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DashboardMutation) OldUnlisted(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnlisted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnlisted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnlisted: %w", err)
+	}
+	return oldValue.Unlisted, nil
+}
+
+// ResetUnlisted resets all changes to the "unlisted" field.
+func (m *DashboardMutation) ResetUnlisted() {
+	m.unlisted = nil
+}
+
 // SetSource sets the "source" field.
 func (m *DashboardMutation) SetSource(d dashboard.Source) {
 	m.source = &d
@@ -1706,7 +1743,7 @@ func (m *DashboardMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DashboardMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.key != nil {
 		fields = append(fields, dashboard.FieldKey)
 	}
@@ -1739,6 +1776,9 @@ func (m *DashboardMutation) Fields() []string {
 	}
 	if m.custom_css != nil {
 		fields = append(fields, dashboard.FieldCustomCSS)
+	}
+	if m.unlisted != nil {
+		fields = append(fields, dashboard.FieldUnlisted)
 	}
 	if m.source != nil {
 		fields = append(fields, dashboard.FieldSource)
@@ -1773,6 +1813,8 @@ func (m *DashboardMutation) Field(name string) (ent.Value, bool) {
 		return m.DefaultRange()
 	case dashboard.FieldCustomCSS:
 		return m.CustomCSS()
+	case dashboard.FieldUnlisted:
+		return m.Unlisted()
 	case dashboard.FieldSource:
 		return m.Source()
 	}
@@ -1806,6 +1848,8 @@ func (m *DashboardMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldDefaultRange(ctx)
 	case dashboard.FieldCustomCSS:
 		return m.OldCustomCSS(ctx)
+	case dashboard.FieldUnlisted:
+		return m.OldUnlisted(ctx)
 	case dashboard.FieldSource:
 		return m.OldSource(ctx)
 	}
@@ -1893,6 +1937,13 @@ func (m *DashboardMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCustomCSS(v)
+		return nil
+	case dashboard.FieldUnlisted:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnlisted(v)
 		return nil
 	case dashboard.FieldSource:
 		v, ok := value.(dashboard.Source)
@@ -2018,6 +2069,9 @@ func (m *DashboardMutation) ResetField(name string) error {
 		return nil
 	case dashboard.FieldCustomCSS:
 		m.ResetCustomCSS()
+		return nil
+	case dashboard.FieldUnlisted:
+		m.ResetUnlisted()
 		return nil
 	case dashboard.FieldSource:
 		m.ResetSource()

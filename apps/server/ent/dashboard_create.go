@@ -119,6 +119,20 @@ func (_c *DashboardCreate) SetNillableCustomCSS(v *string) *DashboardCreate {
 	return _c
 }
 
+// SetUnlisted sets the "unlisted" field.
+func (_c *DashboardCreate) SetUnlisted(v bool) *DashboardCreate {
+	_c.mutation.SetUnlisted(v)
+	return _c
+}
+
+// SetNillableUnlisted sets the "unlisted" field if the given value is not nil.
+func (_c *DashboardCreate) SetNillableUnlisted(v *bool) *DashboardCreate {
+	if v != nil {
+		_c.SetUnlisted(*v)
+	}
+	return _c
+}
+
 // SetSource sets the "source" field.
 func (_c *DashboardCreate) SetSource(v dashboard.Source) *DashboardCreate {
 	_c.mutation.SetSource(v)
@@ -184,6 +198,10 @@ func (_c *DashboardCreate) defaults() {
 		v := dashboard.DefaultCustomCSS
 		_c.mutation.SetCustomCSS(v)
 	}
+	if _, ok := _c.mutation.Unlisted(); !ok {
+		v := dashboard.DefaultUnlisted
+		_c.mutation.SetUnlisted(v)
+	}
 	if _, ok := _c.mutation.Source(); !ok {
 		v := dashboard.DefaultSource
 		_c.mutation.SetSource(v)
@@ -225,6 +243,9 @@ func (_c *DashboardCreate) check() error {
 	}
 	if _, ok := _c.mutation.CustomCSS(); !ok {
 		return &ValidationError{Name: "custom_css", err: errors.New(`ent: missing required field "Dashboard.custom_css"`)}
+	}
+	if _, ok := _c.mutation.Unlisted(); !ok {
+		return &ValidationError{Name: "unlisted", err: errors.New(`ent: missing required field "Dashboard.unlisted"`)}
 	}
 	if _, ok := _c.mutation.Source(); !ok {
 		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "Dashboard.source"`)}
@@ -304,6 +325,10 @@ func (_c *DashboardCreate) createSpec() (*Dashboard, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CustomCSS(); ok {
 		_spec.SetField(dashboard.FieldCustomCSS, field.TypeString, value)
 		_node.CustomCSS = value
+	}
+	if value, ok := _c.mutation.Unlisted(); ok {
+		_spec.SetField(dashboard.FieldUnlisted, field.TypeBool, value)
+		_node.Unlisted = value
 	}
 	if value, ok := _c.mutation.Source(); ok {
 		_spec.SetField(dashboard.FieldSource, field.TypeEnum, value)
@@ -514,6 +539,18 @@ func (u *DashboardUpsert) SetCustomCSS(v string) *DashboardUpsert {
 // UpdateCustomCSS sets the "custom_css" field to the value that was provided on create.
 func (u *DashboardUpsert) UpdateCustomCSS() *DashboardUpsert {
 	u.SetExcluded(dashboard.FieldCustomCSS)
+	return u
+}
+
+// SetUnlisted sets the "unlisted" field.
+func (u *DashboardUpsert) SetUnlisted(v bool) *DashboardUpsert {
+	u.Set(dashboard.FieldUnlisted, v)
+	return u
+}
+
+// UpdateUnlisted sets the "unlisted" field to the value that was provided on create.
+func (u *DashboardUpsert) UpdateUnlisted() *DashboardUpsert {
+	u.SetExcluded(dashboard.FieldUnlisted)
 	return u
 }
 
@@ -748,6 +785,20 @@ func (u *DashboardUpsertOne) SetCustomCSS(v string) *DashboardUpsertOne {
 func (u *DashboardUpsertOne) UpdateCustomCSS() *DashboardUpsertOne {
 	return u.Update(func(s *DashboardUpsert) {
 		s.UpdateCustomCSS()
+	})
+}
+
+// SetUnlisted sets the "unlisted" field.
+func (u *DashboardUpsertOne) SetUnlisted(v bool) *DashboardUpsertOne {
+	return u.Update(func(s *DashboardUpsert) {
+		s.SetUnlisted(v)
+	})
+}
+
+// UpdateUnlisted sets the "unlisted" field to the value that was provided on create.
+func (u *DashboardUpsertOne) UpdateUnlisted() *DashboardUpsertOne {
+	return u.Update(func(s *DashboardUpsert) {
+		s.UpdateUnlisted()
 	})
 }
 
@@ -1148,6 +1199,20 @@ func (u *DashboardUpsertBulk) SetCustomCSS(v string) *DashboardUpsertBulk {
 func (u *DashboardUpsertBulk) UpdateCustomCSS() *DashboardUpsertBulk {
 	return u.Update(func(s *DashboardUpsert) {
 		s.UpdateCustomCSS()
+	})
+}
+
+// SetUnlisted sets the "unlisted" field.
+func (u *DashboardUpsertBulk) SetUnlisted(v bool) *DashboardUpsertBulk {
+	return u.Update(func(s *DashboardUpsert) {
+		s.SetUnlisted(v)
+	})
+}
+
+// UpdateUnlisted sets the "unlisted" field to the value that was provided on create.
+func (u *DashboardUpsertBulk) UpdateUnlisted() *DashboardUpsertBulk {
+	return u.Update(func(s *DashboardUpsert) {
+		s.UpdateUnlisted()
 	})
 }
 

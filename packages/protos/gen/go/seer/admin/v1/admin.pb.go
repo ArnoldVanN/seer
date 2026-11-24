@@ -386,7 +386,11 @@ type Dashboard struct {
 	DefaultRange v1.HistoryRange `protobuf:"varint,8,opt,name=default_range,json=defaultRange,proto3,enum=seer.common.v1.HistoryRange" json:"default_range,omitempty"`
 	CustomCss    string          `protobuf:"bytes,9,opt,name=custom_css,json=customCss,proto3" json:"custom_css,omitempty"`
 	// Site the dashboard belongs to, for group matching. Empty is the top level.
-	Site          string `protobuf:"bytes,10,opt,name=site,proto3" json:"site,omitempty"`
+	Site string `protobuf:"bytes,10,opt,name=site,proto3" json:"site,omitempty"`
+	// Left out of the dashboard list, so it gets no tab and is never the home
+	// page. Its page and its endpoints' badges still work. It must still be on
+	// the site.
+	Unlisted      bool `protobuf:"varint,11,opt,name=unlisted,proto3" json:"unlisted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -489,6 +493,13 @@ func (x *Dashboard) GetSite() string {
 		return x.Site
 	}
 	return ""
+}
+
+func (x *Dashboard) GetUnlisted() bool {
+	if x != nil {
+		return x.Unlisted
+	}
+	return false
 }
 
 type Endpoint struct {
@@ -2170,7 +2181,7 @@ const file_seer_admin_v1_admin_proto_rawDesc = "" +
 	"\ffooter_links\x18\t \x03(\v2\x14.seer.common.v1.LinkR\vfooterLinks\x12+\n" +
 	"\x0fhide_powered_by\x18\n" +
 	" \x01(\bH\x00R\rhidePoweredBy\x88\x01\x01B\x12\n" +
-	"\x10_hide_powered_by\"\xeb\x02\n" +
+	"\x10_hide_powered_by\"\x87\x03\n" +
 	"\tDashboard\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -2185,7 +2196,8 @@ const file_seer_admin_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"custom_css\x18\t \x01(\tR\tcustomCss\x12\x12\n" +
 	"\x04site\x18\n" +
-	" \x01(\tR\x04site\"\xb4\x06\n" +
+	" \x01(\tR\x04site\x12\x1a\n" +
+	"\bunlisted\x18\v \x01(\bR\bunlisted\"\xb4\x06\n" +
 	"\bEndpoint\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +

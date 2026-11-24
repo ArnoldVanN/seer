@@ -27,12 +27,14 @@ dashboards:
 | `defaultRange` | History range shown when the URL doesn't pick one: `24h`, `7d`, `30d`, `90d` (default) or `1y`. |
 | `customCss` / `customCssFile` | CSS for this dashboard's page, after the site's. It stays loaded after navigating to another page, so scope rules with `[data-dashboard="<key>"]`. |
 | `allowedGroups` | Private only: auth groups that may view it. Empty means any signed-in user (see [Authentication](/docs/authentication)). |
+| `unlisted` | Leaves it out of the dashboard tabs, so it's never the home page. Its page still works at `/d/<key>`, and its endpoints keep their badges and endpoint pages. The dashboard must still be on the site. |
 
 With no dashboards configured, one public dashboard shows every endpoint.
 
 <Callout>
   An endpoint is visible publicly only if it's on a public dashboard; there's
-  no per-endpoint visibility.
+  no per-endpoint visibility. To serve badges without listing the endpoints,
+  put them on an `unlisted` public dashboard.
 </Callout>
 
 ## Where private dashboards are served

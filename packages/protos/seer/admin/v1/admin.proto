@@ -108,6 +108,10 @@ message Dashboard {
   string custom_css = 9;
   // Site the dashboard belongs to, for group matching. Empty is the top level.
   string site = 10;
+  // Left out of the dashboard list, so it gets no tab and is never the home
+  // page. Its page and its endpoints' badges still work. It must still be on
+  // the site.
+  bool unlisted = 11;
 }
 
 message Endpoint {

@@ -87,6 +87,11 @@ func CustomCSS(v string) predicate.Dashboard {
 	return predicate.Dashboard(sql.FieldEQ(FieldCustomCSS, v))
 }
 
+// Unlisted applies equality check predicate on the "unlisted" field. It's identical to UnlistedEQ.
+func Unlisted(v bool) predicate.Dashboard {
+	return predicate.Dashboard(sql.FieldEQ(FieldUnlisted, v))
+}
+
 // KeyEQ applies the EQ predicate on the "key" field.
 func KeyEQ(v string) predicate.Dashboard {
 	return predicate.Dashboard(sql.FieldEQ(FieldKey, v))
@@ -565,6 +570,16 @@ func CustomCSSEqualFold(v string) predicate.Dashboard {
 // CustomCSSContainsFold applies the ContainsFold predicate on the "custom_css" field.
 func CustomCSSContainsFold(v string) predicate.Dashboard {
 	return predicate.Dashboard(sql.FieldContainsFold(FieldCustomCSS, v))
+}
+
+// UnlistedEQ applies the EQ predicate on the "unlisted" field.
+func UnlistedEQ(v bool) predicate.Dashboard {
+	return predicate.Dashboard(sql.FieldEQ(FieldUnlisted, v))
+}
+
+// UnlistedNEQ applies the NEQ predicate on the "unlisted" field.
+func UnlistedNEQ(v bool) predicate.Dashboard {
+	return predicate.Dashboard(sql.FieldNEQ(FieldUnlisted, v))
 }
 
 // SourceEQ applies the EQ predicate on the "source" field.

@@ -261,6 +261,7 @@ func (s *Service) PutDashboard(ctx context.Context, req *connect.Request[adminv1
 		AllowedGroups: in.AllowedGroups,
 		DefaultRange:  rangeFromProto(in.DefaultRange),
 		CustomCSS:     strings.TrimSpace(in.CustomCss),
+		Unlisted:      in.Unlisted,
 		Site:          in.Site,
 	}
 	d.ApplyDefaults()
@@ -288,6 +289,7 @@ func (s *Service) PutDashboard(ctx context.Context, req *connect.Request[adminv1
 		SetDescription(d.Description).
 		SetDefaultRange(d.DefaultRange).
 		SetCustomCSS(d.CustomCSS).
+		SetUnlisted(d.Unlisted).
 		SetSource(dashboard.SourceAPI).
 		OnConflict(sql.ConflictColumns(dashboard.FieldKey), sql.ResolveWithNewValues(), onlyAPI(dashboard.FieldSource)).
 		Exec(ctx)
@@ -308,6 +310,7 @@ func (s *Service) PutDashboard(ctx context.Context, req *connect.Request[adminv1
 		AllowedGroups: d.AllowedGroups,
 		DefaultRange:  rangeToProto(d.DefaultRange),
 		CustomCss:     d.CustomCSS,
+		Unlisted:      d.Unlisted,
 		Site:          d.Site,
 	}}), nil
 }

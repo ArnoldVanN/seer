@@ -25,6 +25,8 @@ func (Dashboard) Fields() []ent.Field {
 		field.String("default_range").Default("").
 			Comment("History range shown when the URL doesn't pick one: 24h, 7d, 30d, 90d or 1y."),
 		field.Text("custom_css").Default(""),
+		field.Bool("unlisted").Default(false).
+			Comment("Left out of the dashboard list but still viewable by URL, and still counts for badges and endpoint pages."),
 		field.Enum("source").Values("config", "api").Default("config").
 			Comment("What owns the row: config sync only touches config rows, the write API only api rows."),
 	}

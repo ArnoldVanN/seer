@@ -159,6 +159,46 @@ func equal(a, b []string) bool {
 	return true
 }
 
+// An unlisted dashboard has no tab, but its page and its endpoints' badges
+// still work.
+func TestUnlisted(t *testing.T) {
+	d := testdb.New(t)
+	ctx := context.Background()
+	cfg, err := config.Parse([]byte(`
+endpoints:
+  - { key: web, group: public,  url: "http://x", conditions: ["[STATUS] == 200"] }
+  - { key: srv, group: servers, url: "http://y", conditions: ["[STATUS] == 200"] }
+dashboards:
+  - { key: status,  visibility: public, groups: [public] }
+  - { key: servers, visibility: public, groups: [servers], unlisted: true }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.SyncConfig(ctx, d, cfg, 0, "test"); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), sites.New(d, cfg.UI))))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	pc := publicv1connect.NewStatusServiceClient(http.DefaultClient, srv.URL)
+
+	list, err := pc.ListDashboards(ctx, connect.NewRequest(&commonv1.ListDashboardsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := keys(list.Msg); len(got) != 1 || got[0] != "status" {
+		t.Errorf("dashboards = %v, want [status]", got)
+	}
+	if _, err := pc.GetDashboard(ctx, connect.NewRequest(&commonv1.GetDashboardRequest{Key: "servers"})); err != nil {
+		t.Errorf("GetDashboard(servers): %v", err)
+	}
+	if _, err := pc.GetEndpointHistory(ctx, connect.NewRequest(&commonv1.GetEndpointHistoryRequest{Key: "srv"})); err != nil {
+		t.Errorf("history of an endpoint only on an unlisted dashboard: %v", err)
+	}
+}
+
 func TestSites(t *testing.T) {
 	d := testdb.New(t)
 	ctx := context.Background()

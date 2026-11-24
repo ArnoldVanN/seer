@@ -127,6 +127,7 @@ func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
 			SetDescription(dsh.Description).
 			SetDefaultRange(dsh.DefaultRange).
 			SetCustomCSS(dsh.CustomCSS).
+			SetUnlisted(dsh.Unlisted).
 			SetSource(dashboard.SourceConfig).
 			OnConflict(
 				sql.ConflictColumns(dashboard.FieldKey),

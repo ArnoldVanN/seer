@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	"github.com/ArnoldVanN/seer/apps/server/ent/dashboard"
 	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
 	"github.com/ArnoldVanN/seer/apps/server/internal/admin"
 	"github.com/ArnoldVanN/seer/apps/server/internal/auth"
@@ -297,6 +298,24 @@ sites:
 		}
 		if _, err := c.DeleteAlertTarget(ctx, connect.NewRequest(&adminv1.DeleteAlertTargetRequest{Key: "aq-2-slack"})); err != nil {
 			t.Error(err)
+		}
+	})
+
+	t.Run("unlisted dashboard", func(t *testing.T) {
+		res, err := c.PutDashboard(ctx, connect.NewRequest(&adminv1.PutDashboardRequest{Dashboard: &adminv1.Dashboard{
+			Key: "badges", Groups: []string{"servers"}, Unlisted: true,
+		}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.Msg.Dashboard.Unlisted {
+			t.Error("response dropped unlisted")
+		}
+		if !d.Ent.Dashboard.Query().Where(dashboard.Key("badges")).OnlyX(ctx).Unlisted {
+			t.Error("stored dashboard is not unlisted")
+		}
+		if _, err := c.DeleteDashboard(ctx, connect.NewRequest(&adminv1.DeleteDashboardRequest{Key: "badges"})); err != nil {
+			t.Fatal(err)
 		}
 	})
 
