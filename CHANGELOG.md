@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.6](https://github.com/ArnoldVanN/seer/compare/v0.1.5...v0.1.6) - 2026-11-25
+
+### Features
+
+- **server:** add paused endpoints ([#24](https://github.com/ArnoldVanN/seer/pull/24)) ([db599c8](https://github.com/ArnoldVanN/seer/commit/db599c838188e1878c97a89541ec1839f7d796b5))
+- **server:** add unlisted dashboards ([#22](https://github.com/ArnoldVanN/seer/pull/22)) ([3998e77](https://github.com/ArnoldVanN/seer/commit/3998e777116d0586cd135c62f164c9a16792ae8c))
+
 ## [seer v0.1.5] - 2026-11-23
 
 ### Bug Fixes
