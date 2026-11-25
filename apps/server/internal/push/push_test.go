@@ -27,6 +27,7 @@ storage: { dsn: "postgres://unused" }
 endpoints:
   - { key: backup, interval: 1h, token: ` + token + ` }
   - { key: off, interval: 1h, token: ` + token + `, enabled: false }
+  - { key: held, interval: 1h, token: ` + token + `, paused: true }
   - { key: web, url: "https://example.com", conditions: ["[STATUS] == 200"] }
 `))
 	if err != nil {
@@ -57,6 +58,7 @@ endpoints:
 		{"no token", "POST", "/push/backup", "", http.StatusNotFound},
 		{"unknown key", "POST", "/push/nope", token, http.StatusNotFound},
 		{"disabled", "POST", "/push/off", token, http.StatusNotFound},
+		{"paused", "POST", "/push/held", token, http.StatusAccepted},
 		{"not a push endpoint", "POST", "/push/web", token, http.StatusNotFound},
 		{"bad status", "POST", "/push/backup?status=meh", token, http.StatusBadRequest},
 		{"bad duration", "POST", "/push/backup?duration=soon", token, http.StatusBadRequest},

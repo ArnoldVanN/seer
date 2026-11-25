@@ -86,12 +86,14 @@ func apply(ctx context.Context, tx *ent.Tx, cfg *config.Config) error {
 			SetType(e.Type).
 			SetIntervalSeconds(max(1, int(e.Interval.D().Seconds()))).
 			SetEnabled(e.IsEnabled()).
+			SetPaused(e.Paused).
 			SetSpec(spec).
 			SetSite(e.Site).
 			SetSource(endpoint.SourceConfig).
 			OnConflict(
 				sql.ConflictColumns(endpoint.FieldKey),
 				sql.ResolveWithNewValues(),
+				db.StampResume(),
 				sql.UpdateWhere(sql.EQ(endpoint.FieldSource, endpoint.SourceConfig.String())),
 			).
 			Exec(ctx)

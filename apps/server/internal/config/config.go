@@ -224,6 +224,8 @@ type Endpoint struct {
 	Interval Duration `yaml:"interval" json:"interval"`
 	Timeout  Duration `yaml:"timeout" json:"timeout"`
 	Enabled  *bool    `yaml:"enabled" json:"enabled,omitempty"`
+	// Stops checks but keeps it on dashboards and badges as paused.
+	Paused bool `yaml:"paused" json:"paused,omitempty"`
 
 	Method  string            `yaml:"method" json:"method,omitempty"`
 	Headers map[string]string `yaml:"headers" json:"headers,omitempty"`

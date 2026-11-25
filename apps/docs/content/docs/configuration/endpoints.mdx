@@ -27,6 +27,7 @@ endpoints:
 | `url` | required | Not for push endpoints. |
 | `interval` | `60s` | |
 | `timeout` | `10s` | |
+| `paused` | `false` | Stop checks but keep it on dashboards and badges, shown as `paused`. Paused time doesn't count toward uptime, and failure counts and alerts start fresh after unpausing. |
 | `method`, `headers`, `body` | `GET` | HTTP only. A `Host` header overrides the request host. |
 | `insecure` | `false` | Skip TLS verification. |
 | `dns` | | `{name, type}` for DNS checks; type defaults to `A`. |

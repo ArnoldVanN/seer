@@ -319,6 +319,34 @@ sites:
 		}
 	})
 
+	t.Run("paused endpoint", func(t *testing.T) {
+		put := func(paused bool) *adminv1.Endpoint {
+			t.Helper()
+			res, err := c.PutEndpoint(ctx, connect.NewRequest(&adminv1.PutEndpointRequest{Endpoint: &adminv1.Endpoint{
+				Key: "srv-1", Type: "push", Group: "servers", Paused: paused,
+			}}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return res.Msg.Endpoint
+		}
+		if !put(true).Paused {
+			t.Error("response dropped paused")
+		}
+		row := d.Ent.Endpoint.Query().Where(endpoint.Key("srv-1")).OnlyX(ctx)
+		if !row.Paused || row.ResumedAt != nil {
+			t.Errorf("stored: paused %v, resumed_at %v; want paused, nil", row.Paused, row.ResumedAt)
+		}
+		put(false)
+		row = d.Ent.Endpoint.Query().Where(endpoint.Key("srv-1")).OnlyX(ctx)
+		if row.Paused || row.ResumedAt == nil {
+			t.Errorf("after unpausing: paused %v, resumed_at %v; want running, set", row.Paused, row.ResumedAt)
+		}
+		if _, err := c.DeleteEndpoint(ctx, connect.NewRequest(&adminv1.DeleteEndpointRequest{Key: "srv-1", Purge: true})); err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	t.Run("deleting a missing key is fine", func(t *testing.T) {
 		if _, err := c.DeleteSite(ctx, connect.NewRequest(&adminv1.DeleteSiteRequest{Key: "nope"})); err != nil {
 			t.Error(err)

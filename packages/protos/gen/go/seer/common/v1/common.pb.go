@@ -30,6 +30,8 @@ const (
 	Status_STATUS_DOWN        Status = 2
 	// Configured but not checked yet.
 	Status_STATUS_UNKNOWN Status = 3
+	// Checks are stopped on purpose, so no results are recorded.
+	Status_STATUS_PAUSED Status = 4
 )
 
 // Enum value maps for Status.
@@ -39,12 +41,14 @@ var (
 		1: "STATUS_UP",
 		2: "STATUS_DOWN",
 		3: "STATUS_UNKNOWN",
+		4: "STATUS_PAUSED",
 	}
 	Status_value = map[string]int32{
 		"STATUS_UNSPECIFIED": 0,
 		"STATUS_UP":          1,
 		"STATUS_DOWN":        2,
 		"STATUS_UNKNOWN":     3,
+		"STATUS_PAUSED":      4,
 	}
 )
 
@@ -1581,12 +1585,13 @@ const file_seer_common_v1_common_proto_rawDesc = "" +
 	"\x0fhide_powered_by\x18\x0e \x01(\bR\rhidePoweredByJ\x04\b\x05\x10\x06R\x05links\"\x16\n" +
 	"\x14GetSiteConfigRequest\"G\n" +
 	"\x15GetSiteConfigResponse\x12.\n" +
-	"\x04site\x18\x01 \x01(\v2\x1a.seer.common.v1.SiteConfigR\x04site*T\n" +
+	"\x04site\x18\x01 \x01(\v2\x1a.seer.common.v1.SiteConfigR\x04site*g\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tSTATUS_UP\x10\x01\x12\x0f\n" +
 	"\vSTATUS_DOWN\x10\x02\x12\x12\n" +
-	"\x0eSTATUS_UNKNOWN\x10\x03*W\n" +
+	"\x0eSTATUS_UNKNOWN\x10\x03\x12\x11\n" +
+	"\rSTATUS_PAUSED\x10\x04*W\n" +
 	"\n" +
 	"Visibility\x12\x1a\n" +
 	"\x16VISIBILITY_UNSPECIFIED\x10\x00\x12\x15\n" +

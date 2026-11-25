@@ -91,6 +91,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	// Accepted but not recorded, as a ping would count toward uptime. A 2xx
+	// keeps `curl -f` in the job's own script from failing.
+	if e.Paused {
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("paused\n"))
+		return
+	}
 	if !h.allow(key, out.CheckedAt) {
 		w.Header().Set("Retry-After", "1")
 		http.Error(w, "too many pings", http.StatusTooManyRequests)

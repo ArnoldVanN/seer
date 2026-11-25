@@ -199,6 +199,45 @@ dashboards:
 	}
 }
 
+// A paused endpoint stays on its dashboard and keeps its badge, shown as
+// paused.
+func TestPaused(t *testing.T) {
+	d := testdb.New(t)
+	ctx := context.Background()
+	cfg, err := config.Parse([]byte(`
+endpoints:
+  - { key: srv, group: servers, token: 0123456789abcdef, paused: true }
+dashboards:
+  - { key: servers, visibility: public, groups: [servers] }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.SyncConfig(ctx, d, cfg, 0, "test"); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(publicv1connect.NewStatusServiceHandler(NewPublic(d, events.NewBus(d.DSN), sites.New(d, cfg.UI))))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	pc := publicv1connect.NewStatusServiceClient(http.DefaultClient, srv.URL)
+
+	h, err := pc.GetEndpointHistory(ctx, connect.NewRequest(&commonv1.GetEndpointHistoryRequest{Key: "srv"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := h.Msg.Endpoint.Status; got != commonv1.Status_STATUS_PAUSED {
+		t.Errorf("endpoint status = %v, want paused", got)
+	}
+	dash, err := pc.GetDashboard(ctx, connect.NewRequest(&commonv1.GetDashboardRequest{Key: "servers"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := dash.Msg.Dashboard.Groups; len(g) != 1 || len(g[0].Endpoints) != 1 || g[0].Endpoints[0].Status != commonv1.Status_STATUS_PAUSED {
+		t.Errorf("dashboard groups = %v, want srv shown as paused", g)
+	}
+}
+
 func TestSites(t *testing.T) {
 	d := testdb.New(t)
 	ctx := context.Background()

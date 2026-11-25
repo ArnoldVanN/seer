@@ -2141,6 +2141,8 @@ type EndpointMutation struct {
 	interval_seconds     *int
 	addinterval_seconds  *int
 	enabled              *bool
+	paused               *bool
+	resumed_at           *time.Time
 	spec                 *[]byte
 	site                 *string
 	source               *endpoint.Source
@@ -2494,6 +2496,91 @@ func (m *EndpointMutation) OldEnabled(ctx context.Context) (v bool, err error) {
 // ResetEnabled resets all changes to the "enabled" field.
 func (m *EndpointMutation) ResetEnabled() {
 	m.enabled = nil
+}
+
+// SetPaused sets the "paused" field.
+func (m *EndpointMutation) SetPaused(b bool) {
+	m.paused = &b
+}
+
+// Paused returns the value of the "paused" field in the mutation.
+func (m *EndpointMutation) Paused() (r bool, exists bool) {
+	v := m.paused
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaused returns the old "paused" field's value of the Endpoint entity.
+// If the Endpoint object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EndpointMutation) OldPaused(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaused is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaused requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaused: %w", err)
+	}
+	return oldValue.Paused, nil
+}
+
+// ResetPaused resets all changes to the "paused" field.
+func (m *EndpointMutation) ResetPaused() {
+	m.paused = nil
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (m *EndpointMutation) SetResumedAt(t time.Time) {
+	m.resumed_at = &t
+}
+
+// ResumedAt returns the value of the "resumed_at" field in the mutation.
+func (m *EndpointMutation) ResumedAt() (r time.Time, exists bool) {
+	v := m.resumed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResumedAt returns the old "resumed_at" field's value of the Endpoint entity.
+// If the Endpoint object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EndpointMutation) OldResumedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResumedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResumedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResumedAt: %w", err)
+	}
+	return oldValue.ResumedAt, nil
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (m *EndpointMutation) ClearResumedAt() {
+	m.resumed_at = nil
+	m.clearedFields[endpoint.FieldResumedAt] = struct{}{}
+}
+
+// ResumedAtCleared returns if the "resumed_at" field was cleared in this mutation.
+func (m *EndpointMutation) ResumedAtCleared() bool {
+	_, ok := m.clearedFields[endpoint.FieldResumedAt]
+	return ok
+}
+
+// ResetResumedAt resets all changes to the "resumed_at" field.
+func (m *EndpointMutation) ResetResumedAt() {
+	m.resumed_at = nil
+	delete(m.clearedFields, endpoint.FieldResumedAt)
 }
 
 // SetSpec sets the "spec" field.
@@ -2875,7 +2962,7 @@ func (m *EndpointMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EndpointMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 12)
 	if m.key != nil {
 		fields = append(fields, endpoint.FieldKey)
 	}
@@ -2893,6 +2980,12 @@ func (m *EndpointMutation) Fields() []string {
 	}
 	if m.enabled != nil {
 		fields = append(fields, endpoint.FieldEnabled)
+	}
+	if m.paused != nil {
+		fields = append(fields, endpoint.FieldPaused)
+	}
+	if m.resumed_at != nil {
+		fields = append(fields, endpoint.FieldResumedAt)
 	}
 	if m.spec != nil {
 		fields = append(fields, endpoint.FieldSpec)
@@ -2926,6 +3019,10 @@ func (m *EndpointMutation) Field(name string) (ent.Value, bool) {
 		return m.IntervalSeconds()
 	case endpoint.FieldEnabled:
 		return m.Enabled()
+	case endpoint.FieldPaused:
+		return m.Paused()
+	case endpoint.FieldResumedAt:
+		return m.ResumedAt()
 	case endpoint.FieldSpec:
 		return m.Spec()
 	case endpoint.FieldSite:
@@ -2955,6 +3052,10 @@ func (m *EndpointMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldIntervalSeconds(ctx)
 	case endpoint.FieldEnabled:
 		return m.OldEnabled(ctx)
+	case endpoint.FieldPaused:
+		return m.OldPaused(ctx)
+	case endpoint.FieldResumedAt:
+		return m.OldResumedAt(ctx)
 	case endpoint.FieldSpec:
 		return m.OldSpec(ctx)
 	case endpoint.FieldSite:
@@ -3013,6 +3114,20 @@ func (m *EndpointMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEnabled(v)
+		return nil
+	case endpoint.FieldPaused:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaused(v)
+		return nil
+	case endpoint.FieldResumedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResumedAt(v)
 		return nil
 	case endpoint.FieldSpec:
 		v, ok := value.([]byte)
@@ -3086,7 +3201,11 @@ func (m *EndpointMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *EndpointMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(endpoint.FieldResumedAt) {
+		fields = append(fields, endpoint.FieldResumedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -3099,6 +3218,11 @@ func (m *EndpointMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *EndpointMutation) ClearField(name string) error {
+	switch name {
+	case endpoint.FieldResumedAt:
+		m.ClearResumedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown Endpoint nullable field %s", name)
 }
 
@@ -3123,6 +3247,12 @@ func (m *EndpointMutation) ResetField(name string) error {
 		return nil
 	case endpoint.FieldEnabled:
 		m.ResetEnabled()
+		return nil
+	case endpoint.FieldPaused:
+		m.ResetPaused()
+		return nil
+	case endpoint.FieldResumedAt:
+		m.ResetResumedAt()
 		return nil
 	case endpoint.FieldSpec:
 		m.ResetSpec()

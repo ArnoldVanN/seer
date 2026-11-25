@@ -27,6 +27,10 @@ const (
 	FieldIntervalSeconds = "interval_seconds"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
+	// FieldPaused holds the string denoting the paused field in the database.
+	FieldPaused = "paused"
+	// FieldResumedAt holds the string denoting the resumed_at field in the database.
+	FieldResumedAt = "resumed_at"
 	// FieldSpec holds the string denoting the spec field in the database.
 	FieldSpec = "spec"
 	// FieldSite holds the string denoting the site field in the database.
@@ -84,6 +88,8 @@ var Columns = []string{
 	FieldType,
 	FieldIntervalSeconds,
 	FieldEnabled,
+	FieldPaused,
+	FieldResumedAt,
 	FieldSpec,
 	FieldSite,
 	FieldSource,
@@ -109,6 +115,8 @@ var (
 	IntervalSecondsValidator func(int) error
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
+	// DefaultPaused holds the default value on creation for the "paused" field.
+	DefaultPaused bool
 	// DefaultSite holds the default value on creation for the "site" field.
 	DefaultSite string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -179,6 +187,16 @@ func ByIntervalSeconds(opts ...sql.OrderTermOption) OrderOption {
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
+}
+
+// ByPaused orders the results by the paused field.
+func ByPaused(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaused, opts...).ToFunc()
+}
+
+// ByResumedAt orders the results by the resumed_at field.
+func ByResumedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResumedAt, opts...).ToFunc()
 }
 
 // BySite orders the results by the site field.

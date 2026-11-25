@@ -107,7 +107,7 @@ func (w *Worker) tick(ctx context.Context) error {
 	}
 	liveWorkers.Set(float64(len(live)))
 
-	eps, err := w.DB.Ent.Endpoint.Query().Where(endpoint.Enabled(true)).All(ctx)
+	eps, err := w.DB.Ent.Endpoint.Query().Where(endpoint.Enabled(true), endpoint.Paused(false)).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (w *Worker) reconcile(ctx context.Context, owned map[string]*ent.Endpoint) 
 
 	for key, r := range w.running {
 		e, ok := owned[key]
-		if ok && sha256.Sum256(e.Spec) == r.hash {
+		if ok && runHash(e) == r.hash {
 			continue
 		}
 		r.cancel()
@@ -149,15 +149,26 @@ func (w *Worker) reconcile(ctx context.Context, owned map[string]*ent.Endpoint) 
 			continue
 		}
 		rctx, cancel := context.WithCancel(ctx)
-		r := &runner{cancel: cancel, done: make(chan struct{}), hash: sha256.Sum256(e.Spec), group: spec.Group}
+		r := &runner{cancel: cancel, done: make(chan struct{}), hash: runHash(e), group: spec.Group}
 		w.running[key] = r
 		go func() {
 			defer close(r.done)
-			w.runEndpoint(rctx, e.ID, &spec)
+			w.runEndpoint(rctx, e, &spec)
 		}()
 		log.Debug().Str("endpoint", key).Msg("acquired endpoint")
 	}
 	ownedEndpoints.Set(float64(len(w.running)))
+}
+
+// runHash changes when the runner must restart: a new spec, or a resume that
+// happened between two ticks, which leaves the spec as it was.
+func runHash(e *ent.Endpoint) [32]byte {
+	h := sha256.New()
+	h.Write(e.Spec)
+	if e.ResumedAt != nil {
+		h.Write([]byte(e.ResumedAt.UTC().Format(time.RFC3339Nano)))
+	}
+	return [32]byte(h.Sum(nil))
 }
 
 func (w *Worker) stopAll() {
@@ -173,9 +184,10 @@ func (w *Worker) stopAll() {
 // runEndpoint checks once per slot. Slots are aligned to wall-clock time plus
 // a per-key offset, so whichever worker owns the endpoint checks at the same
 // moments and the (endpoint, slot) unique key catches overlap during handoff.
-func (w *Worker) runEndpoint(ctx context.Context, endpointID int, spec *config.Endpoint) {
+func (w *Worker) runEndpoint(ctx context.Context, e *ent.Endpoint, spec *config.Endpoint) {
+	endpointID := e.ID
 	if spec.Type == "push" {
-		w.watchPush(ctx, endpointID, spec)
+		w.watchPush(ctx, endpointID, spec, e.ResumedAt)
 		return
 	}
 	interval := spec.Interval.D().Milliseconds()

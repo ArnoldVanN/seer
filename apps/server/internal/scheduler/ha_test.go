@@ -256,7 +256,7 @@ func TestPushHA(t *testing.T) {
 		w := NewWorker(d, &Recorder{DB: d, Notify: disp})
 		wg.Add(2)
 		go func() { defer wg.Done(); disp.Run(wctx) }()
-		go func() { defer wg.Done(); w.watchPush(wctx, ep.ID, &spec) }()
+		go func() { defer wg.Done(); w.watchPush(wctx, ep.ID, &spec, nil) }()
 	}
 	time.Sleep(4*period + 300*time.Millisecond)
 

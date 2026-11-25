@@ -67,6 +67,8 @@ var (
 		{Name: "type", Type: field.TypeString},
 		{Name: "interval_seconds", Type: field.TypeInt},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "paused", Type: field.TypeBool, Default: false},
+		{Name: "resumed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "spec", Type: field.TypeBytes},
 		{Name: "site", Type: field.TypeString, Default: ""},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"config", "api"}, Default: "config"},

@@ -51,6 +51,8 @@ message Item {
   string site = 3;
   // Endpoints only: false once deleted without purge.
   bool enabled = 4;
+  // Endpoints only.
+  bool paused = 5;
 }
 
 message Site {
@@ -155,6 +157,10 @@ message Endpoint {
 
   // Site the endpoint belongs to, for group matching. Empty is the top level.
   string site = 22;
+  // Stops checks but keeps the endpoint on dashboards and badges, shown as
+  // paused. A push endpoint gets a full interval plus grace after unpausing
+  // before a missed ping counts.
+  bool paused = 23;
 }
 
 message DNSQuery {

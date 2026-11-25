@@ -3,7 +3,9 @@ package jobs
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/ArnoldVanN/seer/apps/server/ent"
 	"github.com/ArnoldVanN/seer/apps/server/ent/dashboard"
 	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
 	"github.com/ArnoldVanN/seer/apps/server/internal/config"
@@ -79,5 +81,53 @@ endpoints:
 		if !d.Ent.Dashboard.Query().Where(dashboard.Key(k)).ExistX(ctx) {
 			t.Errorf("API dashboard %s deleted by config sync", k)
 		}
+	}
+}
+
+func TestSyncConfigStampsResume(t *testing.T) {
+	d := testdb.New(t)
+	ctx := context.Background()
+
+	gen := int64(0)
+	sync := func(yaml string) *ent.Endpoint {
+		t.Helper()
+		gen++
+		cfg, err := config.Parse([]byte(yaml))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := SyncConfig(ctx, d, cfg, gen, "test"); err != nil {
+			t.Fatal(err)
+		}
+		return d.Ent.Endpoint.Query().Where(endpoint.Key("cron")).OnlyX(ctx)
+	}
+	paused := `
+endpoints:
+  - { key: cron, token: 0123456789abcdef, paused: true }
+`
+	running := `
+endpoints:
+  - { key: cron, token: 0123456789abcdef }
+`
+	removed := `
+endpoints:
+  - { key: other, token: 0123456789abcdef }
+`
+
+	if e := sync(paused); e.ResumedAt != nil || !e.Paused {
+		t.Fatalf("new paused endpoint: paused %v, resumed_at %v; want paused, nil", e.Paused, e.ResumedAt)
+	}
+	first := sync(running).ResumedAt
+	if first == nil {
+		t.Fatal("unpausing left resumed_at unset")
+	}
+	if e := sync(running); e.ResumedAt == nil || !e.ResumedAt.Equal(*first) {
+		t.Errorf("a sync with no change moved resumed_at from %v to %v", first, e.ResumedAt)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+	sync(removed)
+	if e := sync(running); e.ResumedAt == nil || !e.ResumedAt.After(*first) {
+		t.Errorf("re-adding a removed endpoint: resumed_at %v, want after %v", e.ResumedAt, first)
 	}
 }

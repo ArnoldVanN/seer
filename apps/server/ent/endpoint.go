@@ -30,6 +30,10 @@ type Endpoint struct {
 	IntervalSeconds int `json:"interval_seconds,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
+	// Not checked, but still shown on dashboards and badges.
+	Paused bool `json:"paused,omitempty"`
+	// When it was last unpaused or re-enabled. Push endpoints count missed pings from here.
+	ResumedAt *time.Time `json:"resumed_at,omitempty"`
 	// JSON-encoded config.Endpoint
 	Spec []byte `json:"spec,omitempty"`
 	// Key of the site that defines it, empty at the top level.
@@ -104,13 +108,13 @@ func (*Endpoint) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case endpoint.FieldSpec:
 			values[i] = new([]byte)
-		case endpoint.FieldEnabled:
+		case endpoint.FieldEnabled, endpoint.FieldPaused:
 			values[i] = new(sql.NullBool)
 		case endpoint.FieldID, endpoint.FieldIntervalSeconds:
 			values[i] = new(sql.NullInt64)
 		case endpoint.FieldKey, endpoint.FieldName, endpoint.FieldGroupName, endpoint.FieldType, endpoint.FieldSite, endpoint.FieldSource:
 			values[i] = new(sql.NullString)
-		case endpoint.FieldUpdatedAt:
+		case endpoint.FieldResumedAt, endpoint.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -168,6 +172,19 @@ func (_m *Endpoint) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field enabled", values[i])
 			} else if value.Valid {
 				_m.Enabled = value.Bool
+			}
+		case endpoint.FieldPaused:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field paused", values[i])
+			} else if value.Valid {
+				_m.Paused = value.Bool
+			}
+		case endpoint.FieldResumedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field resumed_at", values[i])
+			} else if value.Valid {
+				_m.ResumedAt = new(time.Time)
+				*_m.ResumedAt = value.Time
 			}
 		case endpoint.FieldSpec:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -266,6 +283,14 @@ func (_m *Endpoint) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("paused=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Paused))
+	builder.WriteString(", ")
+	if v := _m.ResumedAt; v != nil {
+		builder.WriteString("resumed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("spec=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Spec))

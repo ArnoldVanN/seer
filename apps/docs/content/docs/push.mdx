@@ -65,8 +65,9 @@ ExecStopPost=/bin/sh -c 'curl -fsS -H "Authorization: Bearer $TOKEN" \
 ```
 
 A wrong token, an unknown key, a disabled endpoint and one that isn't a push
-endpoint all answer `404`, so keys can't be probed. Each endpoint takes a
-burst of 5 pings, then one a second; more answer `429`.
+endpoint all answer `404`, so keys can't be probed. A paused endpoint answers
+`202` and records nothing. Each endpoint takes a burst of 5 pings, then one a
+second. Any more answer `429`.
 
 ## Missed pings
 
@@ -80,6 +81,9 @@ resolves them.
 The deadline is worked out from the last stored result, so two workers that
 both own the endpoint during a handoff record the same missed ping once. After
 a long outage of Seer itself, the backlog collapses into a single failure.
+
+Unpausing or re-enabling an endpoint counts as a ping, so it gets a full
+`interval + grace` before the first miss.
 
 ## Routing
 

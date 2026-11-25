@@ -58,7 +58,7 @@ function setUrlParam(name: string, value: string) {
 // "unstable": currently up, but with failed checks in the shown range.
 function matchesFilter(e: EndpointView, f: Filter): boolean {
   if (f === "down") return e.status === "down"
-  if (f === "unstable") return e.status !== "down" && e.history.some((b) => b.successes < b.checks)
+  if (f === "unstable") return e.status !== "down" && e.status !== "paused" && e.history.some((b) => b.successes < b.checks)
   return true
 }
 
@@ -316,7 +316,9 @@ function GroupHeader({
 }) {
   const down = endpoints.filter((e) => e.status === "down").length
   const up = endpoints.filter((e) => e.status === "up").length
-  const status: Status = down > 0 ? "down" : up === endpoints.length ? "up" : "unknown"
+  const paused = endpoints.filter((e) => e.status === "paused").length
+  const status: Status =
+    down > 0 ? "down" : paused === endpoints.length ? "paused" : up + paused === endpoints.length ? "up" : "unknown"
   return (
     <button
       type="button"
@@ -330,7 +332,7 @@ function GroupHeader({
       {!open && (
         <span className="ml-auto flex items-center gap-2 tracking-normal normal-case">
           <span className="seer-status-dot" data-status={status} />
-          {up}/{endpoints.length} up
+          {status === "paused" ? "paused" : `${up}/${endpoints.length - paused} up`}
         </span>
       )}
     </button>
@@ -371,9 +373,12 @@ function applyUpdate(
 
 function OverallStatus({ endpoints, live }: { endpoints: EndpointView[]; live: boolean }) {
   const down = endpoints.filter((e) => e.status === "down").length
-  let state: "operational" | "degraded" | "outage" = "operational"
+  let state: "operational" | "degraded" | "outage" | "paused" = "operational"
   let text = "All systems operational"
-  if (down > 0 && (down === endpoints.length || down > endpoints.length / 2)) {
+  if (endpoints.length > 0 && endpoints.every((e) => e.status === "paused")) {
+    state = "paused"
+    text = "Monitoring paused"
+  } else if (down > 0 && (down === endpoints.length || down > endpoints.length / 2)) {
     state = "outage"
     text = "Major outage"
   } else if (down > 0) {
@@ -405,7 +410,7 @@ function EndpointRow({ e, now, href }: { e: EndpointView; now: number | null; hr
           {e.name}
         </Link>
         <span className="seer-endpoint-meta ml-auto hidden text-xs text-muted-foreground sm:inline">
-          {e.status !== "unknown" && <span>{e.lastResponseTimeMs} ms · </span>}
+          {(e.status === "up" || e.status === "down") && <span>{e.lastResponseTimeMs} ms · </span>}
           {now !== null && <span>{formatAgo(e.lastCheckedAt, now)}</span>}
         </span>
         <span className="seer-uptime min-w-16 text-right text-sm tabular-nums max-sm:ml-auto">
