@@ -147,6 +147,9 @@
   .seer-status-dot[data-status="down"] {
     @apply bg-down ring-4 ring-down/25;
   }
+  .seer-status-dot[data-status="paused"] {
+    @apply bg-transparent ring-2 ring-unknown ring-inset;
+  }
 
   .seer-history-bar {
     @apply bg-nodata;
@@ -169,5 +172,8 @@
   }
   .seer-overall[data-state="outage"] {
     @apply bg-down;
+  }
+  .seer-overall[data-state="paused"] {
+    @apply bg-unknown;
   }
 }

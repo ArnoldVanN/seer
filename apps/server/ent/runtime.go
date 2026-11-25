@@ -83,12 +83,16 @@ func init() {
 	endpointDescEnabled := endpointFields[5].Descriptor()
 	// endpoint.DefaultEnabled holds the default value on creation for the enabled field.
 	endpoint.DefaultEnabled = endpointDescEnabled.Default.(bool)
+	// endpointDescPaused is the schema descriptor for paused field.
+	endpointDescPaused := endpointFields[6].Descriptor()
+	// endpoint.DefaultPaused holds the default value on creation for the paused field.
+	endpoint.DefaultPaused = endpointDescPaused.Default.(bool)
 	// endpointDescSite is the schema descriptor for site field.
-	endpointDescSite := endpointFields[7].Descriptor()
+	endpointDescSite := endpointFields[9].Descriptor()
 	// endpoint.DefaultSite holds the default value on creation for the site field.
 	endpoint.DefaultSite = endpointDescSite.Default.(string)
 	// endpointDescUpdatedAt is the schema descriptor for updated_at field.
-	endpointDescUpdatedAt := endpointFields[9].Descriptor()
+	endpointDescUpdatedAt := endpointFields[11].Descriptor()
 	// endpoint.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	endpoint.DefaultUpdatedAt = endpointDescUpdatedAt.Default.(func() time.Time)
 	// endpoint.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

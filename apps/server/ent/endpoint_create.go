@@ -78,6 +78,34 @@ func (_c *EndpointCreate) SetNillableEnabled(v *bool) *EndpointCreate {
 	return _c
 }
 
+// SetPaused sets the "paused" field.
+func (_c *EndpointCreate) SetPaused(v bool) *EndpointCreate {
+	_c.mutation.SetPaused(v)
+	return _c
+}
+
+// SetNillablePaused sets the "paused" field if the given value is not nil.
+func (_c *EndpointCreate) SetNillablePaused(v *bool) *EndpointCreate {
+	if v != nil {
+		_c.SetPaused(*v)
+	}
+	return _c
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (_c *EndpointCreate) SetResumedAt(v time.Time) *EndpointCreate {
+	_c.mutation.SetResumedAt(v)
+	return _c
+}
+
+// SetNillableResumedAt sets the "resumed_at" field if the given value is not nil.
+func (_c *EndpointCreate) SetNillableResumedAt(v *time.Time) *EndpointCreate {
+	if v != nil {
+		_c.SetResumedAt(*v)
+	}
+	return _c
+}
+
 // SetSpec sets the "spec" field.
 func (_c *EndpointCreate) SetSpec(v []byte) *EndpointCreate {
 	_c.mutation.SetSpec(v)
@@ -233,6 +261,10 @@ func (_c *EndpointCreate) defaults() {
 		v := endpoint.DefaultEnabled
 		_c.mutation.SetEnabled(v)
 	}
+	if _, ok := _c.mutation.Paused(); !ok {
+		v := endpoint.DefaultPaused
+		_c.mutation.SetPaused(v)
+	}
 	if _, ok := _c.mutation.Site(); !ok {
 		v := endpoint.DefaultSite
 		_c.mutation.SetSite(v)
@@ -276,6 +308,9 @@ func (_c *EndpointCreate) check() error {
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "Endpoint.enabled"`)}
+	}
+	if _, ok := _c.mutation.Paused(); !ok {
+		return &ValidationError{Name: "paused", err: errors.New(`ent: missing required field "Endpoint.paused"`)}
 	}
 	if _, ok := _c.mutation.Spec(); !ok {
 		return &ValidationError{Name: "spec", err: errors.New(`ent: missing required field "Endpoint.spec"`)}
@@ -344,6 +379,14 @@ func (_c *EndpointCreate) createSpec() (*Endpoint, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(endpoint.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
+	}
+	if value, ok := _c.mutation.Paused(); ok {
+		_spec.SetField(endpoint.FieldPaused, field.TypeBool, value)
+		_node.Paused = value
+	}
+	if value, ok := _c.mutation.ResumedAt(); ok {
+		_spec.SetField(endpoint.FieldResumedAt, field.TypeTime, value)
+		_node.ResumedAt = &value
 	}
 	if value, ok := _c.mutation.Spec(); ok {
 		_spec.SetField(endpoint.FieldSpec, field.TypeBytes, value)
@@ -555,6 +598,36 @@ func (u *EndpointUpsert) UpdateEnabled() *EndpointUpsert {
 	return u
 }
 
+// SetPaused sets the "paused" field.
+func (u *EndpointUpsert) SetPaused(v bool) *EndpointUpsert {
+	u.Set(endpoint.FieldPaused, v)
+	return u
+}
+
+// UpdatePaused sets the "paused" field to the value that was provided on create.
+func (u *EndpointUpsert) UpdatePaused() *EndpointUpsert {
+	u.SetExcluded(endpoint.FieldPaused)
+	return u
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (u *EndpointUpsert) SetResumedAt(v time.Time) *EndpointUpsert {
+	u.Set(endpoint.FieldResumedAt, v)
+	return u
+}
+
+// UpdateResumedAt sets the "resumed_at" field to the value that was provided on create.
+func (u *EndpointUpsert) UpdateResumedAt() *EndpointUpsert {
+	u.SetExcluded(endpoint.FieldResumedAt)
+	return u
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (u *EndpointUpsert) ClearResumedAt() *EndpointUpsert {
+	u.SetNull(endpoint.FieldResumedAt)
+	return u
+}
+
 // SetSpec sets the "spec" field.
 func (u *EndpointUpsert) SetSpec(v []byte) *EndpointUpsert {
 	u.Set(endpoint.FieldSpec, v)
@@ -731,6 +804,41 @@ func (u *EndpointUpsertOne) SetEnabled(v bool) *EndpointUpsertOne {
 func (u *EndpointUpsertOne) UpdateEnabled() *EndpointUpsertOne {
 	return u.Update(func(s *EndpointUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetPaused sets the "paused" field.
+func (u *EndpointUpsertOne) SetPaused(v bool) *EndpointUpsertOne {
+	return u.Update(func(s *EndpointUpsert) {
+		s.SetPaused(v)
+	})
+}
+
+// UpdatePaused sets the "paused" field to the value that was provided on create.
+func (u *EndpointUpsertOne) UpdatePaused() *EndpointUpsertOne {
+	return u.Update(func(s *EndpointUpsert) {
+		s.UpdatePaused()
+	})
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (u *EndpointUpsertOne) SetResumedAt(v time.Time) *EndpointUpsertOne {
+	return u.Update(func(s *EndpointUpsert) {
+		s.SetResumedAt(v)
+	})
+}
+
+// UpdateResumedAt sets the "resumed_at" field to the value that was provided on create.
+func (u *EndpointUpsertOne) UpdateResumedAt() *EndpointUpsertOne {
+	return u.Update(func(s *EndpointUpsert) {
+		s.UpdateResumedAt()
+	})
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (u *EndpointUpsertOne) ClearResumedAt() *EndpointUpsertOne {
+	return u.Update(func(s *EndpointUpsert) {
+		s.ClearResumedAt()
 	})
 }
 
@@ -1082,6 +1190,41 @@ func (u *EndpointUpsertBulk) SetEnabled(v bool) *EndpointUpsertBulk {
 func (u *EndpointUpsertBulk) UpdateEnabled() *EndpointUpsertBulk {
 	return u.Update(func(s *EndpointUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetPaused sets the "paused" field.
+func (u *EndpointUpsertBulk) SetPaused(v bool) *EndpointUpsertBulk {
+	return u.Update(func(s *EndpointUpsert) {
+		s.SetPaused(v)
+	})
+}
+
+// UpdatePaused sets the "paused" field to the value that was provided on create.
+func (u *EndpointUpsertBulk) UpdatePaused() *EndpointUpsertBulk {
+	return u.Update(func(s *EndpointUpsert) {
+		s.UpdatePaused()
+	})
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (u *EndpointUpsertBulk) SetResumedAt(v time.Time) *EndpointUpsertBulk {
+	return u.Update(func(s *EndpointUpsert) {
+		s.SetResumedAt(v)
+	})
+}
+
+// UpdateResumedAt sets the "resumed_at" field to the value that was provided on create.
+func (u *EndpointUpsertBulk) UpdateResumedAt() *EndpointUpsertBulk {
+	return u.Update(func(s *EndpointUpsert) {
+		s.UpdateResumedAt()
+	})
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (u *EndpointUpsertBulk) ClearResumedAt() *EndpointUpsertBulk {
+	return u.Update(func(s *EndpointUpsert) {
+		s.ClearResumedAt()
 	})
 }
 

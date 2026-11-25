@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/ArnoldVanN/seer/apps/server/ent"
+	"github.com/ArnoldVanN/seer/apps/server/ent/endpoint"
 	"github.com/ArnoldVanN/seer/apps/server/ent/endpointstate"
 	"github.com/ArnoldVanN/seer/apps/server/ent/result"
 	"github.com/ArnoldVanN/seer/apps/server/internal/checker"
@@ -28,9 +29,25 @@ type Recorder struct {
 
 // Record stores out for slot and updates the endpoint's state. It returns
 // false if another worker already stored this slot, in which case nothing
-// else happens: the counters and alerts only move once per slot.
+// else happens: the counters and alerts only move once per slot. It also
+// returns false while the endpoint is paused, which catches a check that was
+// already running when the pause landed.
 func (r *Recorder) Record(ctx context.Context, endpointID int, spec *config.Endpoint, slot int64, out checker.Outcome) (bool, error) {
-	_, err := r.DB.Ent.Result.Create().
+	ep, err := r.DB.Ent.Endpoint.Query().
+		Where(endpoint.ID(endpointID)).
+		Select(endpoint.FieldPaused, endpoint.FieldResumedAt).
+		Only(ctx)
+	if ent.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read endpoint: %w", err)
+	}
+	if ep.Paused {
+		return false, nil
+	}
+
+	_, err = r.DB.Ent.Result.Create().
 		SetEndpointID(endpointID).
 		SetSlot(slot).
 		SetCheckedAt(out.CheckedAt).
@@ -48,7 +65,7 @@ func (r *Recorder) Record(ctx context.Context, endpointID int, spec *config.Endp
 		return false, fmt.Errorf("insert result: %w", err)
 	}
 
-	status, err := r.applyState(ctx, endpointID, spec, out)
+	status, err := r.applyState(ctx, endpointID, spec, out, ep.ResumedAt)
 	if err != nil {
 		return true, err
 	}
@@ -68,7 +85,11 @@ func (r *Recorder) Record(ctx context.Context, endpointID int, spec *config.Endp
 // Results for different slots can land concurrently during a handoff, so it
 // retries on conflict. Whichever write wins queues that transition's events,
 // in the same transaction.
-func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.Endpoint, out checker.Outcome) (string, error) {
+//
+// The first result after a resume starts from a fresh state. Counters and
+// alerts from before the pause would otherwise fire on one failure, or send
+// a resolve for an outage that ended long ago.
+func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.Endpoint, out checker.Outcome, resumedAt *time.Time) (string, error) {
 	for attempt := 0; attempt < 5; attempt++ {
 		st, err := r.loadState(ctx, endpointID)
 		if err != nil {
@@ -81,9 +102,12 @@ func (r *Recorder) applyState(ctx context.Context, endpointID int, spec *config.
 			Triggered: st.TriggeredAlerts,
 			ChangedAt: st.ChangedAt,
 		}
+		if resumedAt != nil && (st.LastCheckedAt == nil || st.LastCheckedAt.Before(*resumedAt)) {
+			prev = state{Status: string(endpointstate.StatusUnknown)}
+		}
 		n, evs := next(prev, out, spec)
 
-		won, err := r.saveState(ctx, st, n, prev.Status, out, endpointID, evs)
+		won, err := r.saveState(ctx, st, n, string(st.Status), out, endpointID, evs)
 		if err != nil {
 			return "", err
 		}

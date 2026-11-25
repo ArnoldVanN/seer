@@ -7,6 +7,7 @@ export const BADGE_COLORS = {
   partial: "#f59e0b",
   down: "#dc2626",
   unknown: "#a1a1a1",
+  paused: "#a1a1a1",
   label: "#555",
 } as const
 

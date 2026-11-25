@@ -1,7 +1,7 @@
 // Plain view models handed to client components. Protobuf messages carry
 // bigints and class-like metadata, so pages convert them first.
 
-export type Status = "up" | "down" | "unknown"
+export type Status = "up" | "down" | "unknown" | "paused"
 
 // Response times (avgMs, minMs, maxMs) cover successful checks only, and are
 // 0 when there were none.

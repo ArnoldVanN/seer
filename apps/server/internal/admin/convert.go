@@ -29,6 +29,7 @@ func endpointFromProto(in *adminv1.Endpoint) config.Endpoint {
 		FailureThreshold: int(in.FailureThreshold),
 		SuccessThreshold: int(in.SuccessThreshold),
 		Site:             in.Site,
+		Paused:           in.Paused,
 	}
 	if in.Disabled {
 		off := false
@@ -71,6 +72,7 @@ func endpointToProto(e config.Endpoint) *adminv1.Endpoint {
 		FailureThreshold: int32(e.FailureThreshold),
 		SuccessThreshold: int32(e.SuccessThreshold),
 		Site:             e.Site,
+		Paused:           e.Paused,
 	}
 	if e.Grace != 0 {
 		out.Grace = durationpb.New(e.Grace.D())

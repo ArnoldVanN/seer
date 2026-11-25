@@ -124,6 +124,40 @@ func (_u *EndpointUpdate) SetNillableEnabled(v *bool) *EndpointUpdate {
 	return _u
 }
 
+// SetPaused sets the "paused" field.
+func (_u *EndpointUpdate) SetPaused(v bool) *EndpointUpdate {
+	_u.mutation.SetPaused(v)
+	return _u
+}
+
+// SetNillablePaused sets the "paused" field if the given value is not nil.
+func (_u *EndpointUpdate) SetNillablePaused(v *bool) *EndpointUpdate {
+	if v != nil {
+		_u.SetPaused(*v)
+	}
+	return _u
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (_u *EndpointUpdate) SetResumedAt(v time.Time) *EndpointUpdate {
+	_u.mutation.SetResumedAt(v)
+	return _u
+}
+
+// SetNillableResumedAt sets the "resumed_at" field if the given value is not nil.
+func (_u *EndpointUpdate) SetNillableResumedAt(v *time.Time) *EndpointUpdate {
+	if v != nil {
+		_u.SetResumedAt(*v)
+	}
+	return _u
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (_u *EndpointUpdate) ClearResumedAt() *EndpointUpdate {
+	_u.mutation.ClearResumedAt()
+	return _u
+}
+
 // SetSpec sets the "spec" field.
 func (_u *EndpointUpdate) SetSpec(v []byte) *EndpointUpdate {
 	_u.mutation.SetSpec(v)
@@ -396,6 +430,15 @@ func (_u *EndpointUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(endpoint.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Paused(); ok {
+		_spec.SetField(endpoint.FieldPaused, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ResumedAt(); ok {
+		_spec.SetField(endpoint.FieldResumedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResumedAtCleared() {
+		_spec.ClearField(endpoint.FieldResumedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Spec(); ok {
 		_spec.SetField(endpoint.FieldSpec, field.TypeBytes, value)
@@ -683,6 +726,40 @@ func (_u *EndpointUpdateOne) SetNillableEnabled(v *bool) *EndpointUpdateOne {
 	if v != nil {
 		_u.SetEnabled(*v)
 	}
+	return _u
+}
+
+// SetPaused sets the "paused" field.
+func (_u *EndpointUpdateOne) SetPaused(v bool) *EndpointUpdateOne {
+	_u.mutation.SetPaused(v)
+	return _u
+}
+
+// SetNillablePaused sets the "paused" field if the given value is not nil.
+func (_u *EndpointUpdateOne) SetNillablePaused(v *bool) *EndpointUpdateOne {
+	if v != nil {
+		_u.SetPaused(*v)
+	}
+	return _u
+}
+
+// SetResumedAt sets the "resumed_at" field.
+func (_u *EndpointUpdateOne) SetResumedAt(v time.Time) *EndpointUpdateOne {
+	_u.mutation.SetResumedAt(v)
+	return _u
+}
+
+// SetNillableResumedAt sets the "resumed_at" field if the given value is not nil.
+func (_u *EndpointUpdateOne) SetNillableResumedAt(v *time.Time) *EndpointUpdateOne {
+	if v != nil {
+		_u.SetResumedAt(*v)
+	}
+	return _u
+}
+
+// ClearResumedAt clears the value of the "resumed_at" field.
+func (_u *EndpointUpdateOne) ClearResumedAt() *EndpointUpdateOne {
+	_u.mutation.ClearResumedAt()
 	return _u
 }
 
@@ -988,6 +1065,15 @@ func (_u *EndpointUpdateOne) sqlSave(ctx context.Context) (_node *Endpoint, err 
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(endpoint.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Paused(); ok {
+		_spec.SetField(endpoint.FieldPaused, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ResumedAt(); ok {
+		_spec.SetField(endpoint.FieldResumedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResumedAtCleared() {
+		_spec.ClearField(endpoint.FieldResumedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Spec(); ok {
 		_spec.SetField(endpoint.FieldSpec, field.TypeBytes, value)

@@ -36,6 +36,20 @@ func TestMissedAt(t *testing.T) {
 	}
 }
 
+func TestCountFrom(t *testing.T) {
+	last := time.Date(2026, 11, 3, 2, 0, 0, 0, time.UTC)
+	before, after := last.Add(-time.Hour), last.Add(time.Hour)
+	if got := countFrom(last, nil); !got.Equal(last) {
+		t.Errorf("never resumed: %v, want %v", got, last)
+	}
+	if got := countFrom(last, &before); !got.Equal(last) {
+		t.Errorf("pinged since resuming: %v, want %v", got, last)
+	}
+	if got := countFrom(last, &after); !got.Equal(after) {
+		t.Errorf("no ping since resuming: %v, want %v", got, after)
+	}
+}
+
 func TestShortDuration(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		24 * time.Hour:               "24h",

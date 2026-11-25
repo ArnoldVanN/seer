@@ -544,6 +544,9 @@ func (s *Service) toEndpoint(e *ent.Endpoint, hist []*commonv1.HistoryBucket) *c
 			out.LastCheckedAt = timestamppb.New(*st.LastCheckedAt)
 		}
 	}
+	if e.Paused {
+		out.Status = commonv1.Status_STATUS_PAUSED
+	}
 	var checks, ok int64
 	for _, b := range hist {
 		checks += b.Checks

@@ -42,6 +42,7 @@ export const toLinks = (ls: Link[]): LinkView[] => ls.map((l) => ({ name: l.name
 export function toStatus(s: Status): StatusView {
   if (s === Status.UP) return "up"
   if (s === Status.DOWN) return "down"
+  if (s === Status.PAUSED) return "paused"
   return "unknown"
 }
 

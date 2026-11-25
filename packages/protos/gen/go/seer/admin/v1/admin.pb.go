@@ -83,7 +83,9 @@ type Item struct {
 	// Owning site, empty at the top level. Sites leave it empty.
 	Site string `protobuf:"bytes,3,opt,name=site,proto3" json:"site,omitempty"`
 	// Endpoints only: false once deleted without purge.
-	Enabled       bool `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled bool `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Endpoints only.
+	Paused        bool `protobuf:"varint,5,opt,name=paused,proto3" json:"paused,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -142,6 +144,13 @@ func (x *Item) GetSite() string {
 func (x *Item) GetEnabled() bool {
 	if x != nil {
 		return x.Enabled
+	}
+	return false
+}
+
+func (x *Item) GetPaused() bool {
+	if x != nil {
+		return x.Paused
 	}
 	return false
 }
@@ -539,7 +548,11 @@ type Endpoint struct {
 	// Types must have a provider under alerting in the config file.
 	Alerts []*Alert `protobuf:"bytes,21,rep,name=alerts,proto3" json:"alerts,omitempty"`
 	// Site the endpoint belongs to, for group matching. Empty is the top level.
-	Site          string `protobuf:"bytes,22,opt,name=site,proto3" json:"site,omitempty"`
+	Site string `protobuf:"bytes,22,opt,name=site,proto3" json:"site,omitempty"`
+	// Stops checks but keeps the endpoint on dashboards and badges, shown as
+	// paused. A push endpoint gets a full interval plus grace after unpausing
+	// before a missed ping counts.
+	Paused        bool `protobuf:"varint,23,opt,name=paused,proto3" json:"paused,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -726,6 +739,13 @@ func (x *Endpoint) GetSite() string {
 		return x.Site
 	}
 	return ""
+}
+
+func (x *Endpoint) GetPaused() bool {
+	if x != nil {
+		return x.Paused
+	}
+	return false
 }
 
 type DNSQuery struct {
@@ -2151,12 +2171,13 @@ var File_seer_admin_v1_admin_proto protoreflect.FileDescriptor
 
 const file_seer_admin_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x19seer/admin/v1/admin.proto\x12\rseer.admin.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bseer/common/v1/common.proto\"u\n" +
+	"\x19seer/admin/v1/admin.proto\x12\rseer.admin.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bseer/common/v1/common.proto\"\x8d\x01\n" +
 	"\x04Item\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
 	"\x06source\x18\x02 \x01(\x0e2\x15.seer.admin.v1.SourceR\x06source\x12\x12\n" +
 	"\x04site\x18\x03 \x01(\tR\x04site\x12\x18\n" +
-	"\aenabled\x18\x04 \x01(\bR\aenabled\"\xdd\x01\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12\x16\n" +
+	"\x06paused\x18\x05 \x01(\bR\x06paused\"\xdd\x01\n" +
 	"\x04Site\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05hosts\x18\x02 \x03(\tR\x05hosts\x12\x1e\n" +
@@ -2197,7 +2218,7 @@ const file_seer_admin_v1_admin_proto_rawDesc = "" +
 	"custom_css\x18\t \x01(\tR\tcustomCss\x12\x12\n" +
 	"\x04site\x18\n" +
 	" \x01(\tR\x04site\x12\x1a\n" +
-	"\bunlisted\x18\v \x01(\bR\bunlisted\"\xb4\x06\n" +
+	"\bunlisted\x18\v \x01(\bR\bunlisted\"\xcc\x06\n" +
 	"\bEndpoint\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -2223,7 +2244,8 @@ const file_seer_admin_v1_admin_proto_rawDesc = "" +
 	"\x11failure_threshold\x18\x13 \x01(\x05R\x10failureThreshold\x12+\n" +
 	"\x11success_threshold\x18\x14 \x01(\x05R\x10successThreshold\x12,\n" +
 	"\x06alerts\x18\x15 \x03(\v2\x14.seer.admin.v1.AlertR\x06alerts\x12\x12\n" +
-	"\x04site\x18\x16 \x01(\tR\x04site\x1a:\n" +
+	"\x04site\x18\x16 \x01(\tR\x04site\x12\x16\n" +
+	"\x06paused\x18\x17 \x01(\bR\x06paused\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +

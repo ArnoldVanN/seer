@@ -21,7 +21,9 @@ const pushPoll = 30 * time.Second
 // watchPush records a failure whenever a push endpoint goes interval+grace
 // without a result. Pings are stored by the API (see internal/push); this
 // only fills the silence. Until the first ping the endpoint stays unknown.
-func (w *Worker) watchPush(ctx context.Context, endpointID int, spec *config.Endpoint) {
+// resumedAt, when set, counts as a ping, so an endpoint that was paused or
+// disabled gets a full period before its first miss.
+func (w *Worker) watchPush(ctx context.Context, endpointID int, spec *config.Endpoint, resumedAt *time.Time) {
 	period := spec.Interval.D() + spec.Grace.D()
 	for {
 		wait := min(pushPoll, period)
@@ -37,7 +39,7 @@ func (w *Worker) watchPush(ctx context.Context, endpointID int, spec *config.End
 			}
 		default:
 			observe(spec, last.Success, time.Duration(last.ResponseTimeMs)*time.Millisecond)
-			at, missed := missedAt(last.CheckedAt, time.Now(), period)
+			at, missed := missedAt(countFrom(last.CheckedAt, resumedAt), time.Now(), period)
 			if !missed {
 				wait = min(wait, time.Until(at))
 				break
@@ -76,6 +78,15 @@ func missedAt(last, now time.Time, period time.Duration) (time.Time, bool) {
 		return last.Add(period), false
 	}
 	return last.Add(k * period), true
+}
+
+// countFrom is where the next deadline is counted from: the latest ping, or
+// the resume if that came later.
+func countFrom(last time.Time, resumedAt *time.Time) time.Time {
+	if resumedAt != nil && resumedAt.After(last) {
+		return *resumedAt
+	}
+	return last
 }
 
 // shortDuration drops the zero units time.Duration.String leaves on round

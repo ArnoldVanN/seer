@@ -10,6 +10,8 @@ enum Status {
   STATUS_DOWN = 2;
   // Configured but not checked yet.
   STATUS_UNKNOWN = 3;
+  // Checks are stopped on purpose, so no results are recorded.
+  STATUS_PAUSED = 4;
 }
 
 enum Visibility {

@@ -396,10 +396,11 @@ func (s *Service) PutEndpoint(ctx context.Context, req *connect.Request[adminv1.
 		SetType(e.Type).
 		SetIntervalSeconds(max(1, int(e.Interval.D().Seconds()))).
 		SetEnabled(e.IsEnabled()).
+		SetPaused(e.Paused).
 		SetSpec(spec).
 		SetSite(e.Site).
 		SetSource(endpoint.SourceAPI).
-		OnConflict(sql.ConflictColumns(endpoint.FieldKey), sql.ResolveWithNewValues(), onlyAPI(endpoint.FieldSource)).
+		OnConflict(sql.ConflictColumns(endpoint.FieldKey), sql.ResolveWithNewValues(), db.StampResume(), onlyAPI(endpoint.FieldSource)).
 		Exec(ctx)
 	if err := guarded(err, "endpoint", e.Key); err != nil {
 		return nil, err
@@ -458,7 +459,7 @@ func (s *Service) ListEndpoints(ctx context.Context, _ *connect.Request[adminv1.
 	}
 	resp := &adminv1.ListEndpointsResponse{}
 	for _, r := range rows {
-		resp.Endpoints = append(resp.Endpoints, &adminv1.Item{Key: r.Key, Source: source(string(r.Source)), Site: r.Site, Enabled: r.Enabled})
+		resp.Endpoints = append(resp.Endpoints, &adminv1.Item{Key: r.Key, Source: source(string(r.Source)), Site: r.Site, Enabled: r.Enabled, Paused: r.Paused})
 	}
 	return connect.NewResponse(resp), nil
 }

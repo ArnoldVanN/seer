@@ -23,6 +23,10 @@ func (Endpoint) Fields() []ent.Field {
 		field.String("type"),
 		field.Int("interval_seconds").Positive(),
 		field.Bool("enabled").Default(true),
+		field.Bool("paused").Default(false).
+			Comment("Not checked, but still shown on dashboards and badges."),
+		field.Time("resumed_at").Optional().Nillable().
+			Comment("When it was last unpaused or re-enabled. Push endpoints count missed pings from here."),
 		field.Bytes("spec").Comment("JSON-encoded config.Endpoint"),
 		field.String("site").Default("").
 			Comment("Key of the site that defines it, empty at the top level."),

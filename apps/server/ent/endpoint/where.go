@@ -85,6 +85,16 @@ func Enabled(v bool) predicate.Endpoint {
 	return predicate.Endpoint(sql.FieldEQ(FieldEnabled, v))
 }
 
+// Paused applies equality check predicate on the "paused" field. It's identical to PausedEQ.
+func Paused(v bool) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldEQ(FieldPaused, v))
+}
+
+// ResumedAt applies equality check predicate on the "resumed_at" field. It's identical to ResumedAtEQ.
+func ResumedAt(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldEQ(FieldResumedAt, v))
+}
+
 // Spec applies equality check predicate on the "spec" field. It's identical to SpecEQ.
 func Spec(v []byte) predicate.Endpoint {
 	return predicate.Endpoint(sql.FieldEQ(FieldSpec, v))
@@ -408,6 +418,66 @@ func EnabledEQ(v bool) predicate.Endpoint {
 // EnabledNEQ applies the NEQ predicate on the "enabled" field.
 func EnabledNEQ(v bool) predicate.Endpoint {
 	return predicate.Endpoint(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// PausedEQ applies the EQ predicate on the "paused" field.
+func PausedEQ(v bool) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldEQ(FieldPaused, v))
+}
+
+// PausedNEQ applies the NEQ predicate on the "paused" field.
+func PausedNEQ(v bool) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldNEQ(FieldPaused, v))
+}
+
+// ResumedAtEQ applies the EQ predicate on the "resumed_at" field.
+func ResumedAtEQ(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldEQ(FieldResumedAt, v))
+}
+
+// ResumedAtNEQ applies the NEQ predicate on the "resumed_at" field.
+func ResumedAtNEQ(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldNEQ(FieldResumedAt, v))
+}
+
+// ResumedAtIn applies the In predicate on the "resumed_at" field.
+func ResumedAtIn(vs ...time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldIn(FieldResumedAt, vs...))
+}
+
+// ResumedAtNotIn applies the NotIn predicate on the "resumed_at" field.
+func ResumedAtNotIn(vs ...time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldNotIn(FieldResumedAt, vs...))
+}
+
+// ResumedAtGT applies the GT predicate on the "resumed_at" field.
+func ResumedAtGT(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldGT(FieldResumedAt, v))
+}
+
+// ResumedAtGTE applies the GTE predicate on the "resumed_at" field.
+func ResumedAtGTE(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldGTE(FieldResumedAt, v))
+}
+
+// ResumedAtLT applies the LT predicate on the "resumed_at" field.
+func ResumedAtLT(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldLT(FieldResumedAt, v))
+}
+
+// ResumedAtLTE applies the LTE predicate on the "resumed_at" field.
+func ResumedAtLTE(v time.Time) predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldLTE(FieldResumedAt, v))
+}
+
+// ResumedAtIsNil applies the IsNil predicate on the "resumed_at" field.
+func ResumedAtIsNil() predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldIsNull(FieldResumedAt))
+}
+
+// ResumedAtNotNil applies the NotNil predicate on the "resumed_at" field.
+func ResumedAtNotNil() predicate.Endpoint {
+	return predicate.Endpoint(sql.FieldNotNull(FieldResumedAt))
 }
 
 // SpecEQ applies the EQ predicate on the "spec" field.
